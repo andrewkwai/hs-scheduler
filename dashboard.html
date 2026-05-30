@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://xzfseofviwlifygfkhdp.supabase.co https://*.supabase.co;">
+    <title>HS Scheduler - Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div class="container">
+    <div id="app-section">
+        <div class="header-flex">
+            <h1>Welcome, <span id="user-name">...</span> 👋</h1>
+            <button id="logout-btn">Sign Out</button>
+        </div>
+        
+        <div class="card highlight">
+            <h2 style="color: var(--primary);">Master Grid Visualizer</h2>
+            <p style="color: var(--text-muted);">Ready to build? Move to the visual drag-and-drop board.</p>
+            <div class="controls">
+                <button id="go-to-scheduler" style="padding: 14px 28px; font-size: 16px;">
+                    Open Scheduler →
+                </button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h3 style="margin-bottom: 8px;">Database Status for <span id="db-school-label" style="color:var(--primary);">...</span></h3>
+            <p style="font-size: 24px; font-weight: 700; color: var(--primary); margin: 0;">
+                <span id="db-count">0</span> <span style="font-size: 16px; color: var(--text-muted); font-weight: 400;">Sections Loaded</span>
+            </p>
+            <div class="controls">
+                <button id="clear-db-btn">Clear My School's Data</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Upload Sections Report</h3>
+            <p style="color: var(--text-muted); font-size: 14px;">Select the target school and upload a fresh <strong>.csv</strong> to update the database.</p>
+            <div class="controls" style="flex-direction: column;">
+                <select id="school-select" style="padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; width: 100%; max-width: 300px; font-family: 'Inter', sans-serif; font-size: 14px;">
+                    <option value="" disabled selected>-- Select School --</option>
+                    <option value="FXH">FXH</option>
+                    <option value="PIH">PIH</option>
+                </select>
+                <input type="file" id="csv-file" accept=".csv" style="padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; width: 100%; max-width: 300px;">
+                <button id="save-db-btn" style="display:none; background: var(--success);">Push to Database</button>
+            </div>
+            <div id="status-msg" style="margin-top: 16px; font-weight: 600;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://xzfseofviwlifygfkhdp.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_SQ2VKEbyWqfShaw5EfypgQ_esez7tdt';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    
+    let parsedData = [];
+    let currentUserSchool = null;
+
+    async function checkUser() {
+        const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+        
+        // GATEKEEPER: Redirect to login if not authenticated
+        if (!user || authError) {
+            window.location.href = 'index.html';
+            return;
+        }
+
+        // Validate against the allowed_users table
+        const { data: allowedUser, error: dbError } = await supabaseClient
+            .from('allowed_users')
+            .select('*')
+            .eq('email', user.email)
+            .maybeSingle();
+
+        if (allowedUser) {
+            currentUserSchool = allowedUser.school;
+            document.getElementById('user-name').textContent = `${user.user_metadata.full_name} (${currentUserSchool})`;
+            document.getElementById('db-school-label').textContent = currentUserSchool;
+            document.getElementById('school-select').value = currentUserSchool;
+            fetchCount();
+        } else {
+            alert("Your account is not authorized.");
+            supabaseClient.auth.signOut().then(() => window.location.href = 'index.html');
+        }
+    }
+
+    async function fetchCount() {
+        if (!currentUserSchool) return;
+        const { count } = await supabaseClient
+            .from('sections')
+            .select('*', { count: 'exact', head: true })
+            .eq('school', currentUserSchool);
+        document.getElementById('db-count').textContent = count || 0;
+    }
+
+    document.getElementById('logout-btn').onclick = async () => {
+        await supabaseClient.auth.signOut();
+        window.location.href = 'index.html';
+    };
+
+    document.getElementById('go-to-scheduler').onclick = () => window.location.href = 'scheduler.html';
+
+    // CSV LOGIC
+    document.getElementById('csv-file').onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
+            const lines = event.target.result.split(/\r?\n/);
+            const headers = lines[0].split(regex).map(h => h.replace(/"/g, '').trim());
+            parsedData = [];
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                const cells = lines[i].split(regex).map(c => c.replace(/"/g, '').trim());
+                let rowObj = {};
+                headers.forEach((h, idx) => rowObj[h] = cells[idx]);
+                parsedData.push(rowObj);
+            }
+            document.getElementById('save-db-btn').style.display = 'block';
+        };
+        reader.readAsText(file);
+    };
+
+    document.getElementById('save-db-btn').onclick = async () => {
+        const msg = document.getElementById('status-msg');
+        msg.textContent = "⏳ Uploading...";
+        
+        const dataToUpload = parsedData.map(row => ({
+            ...row,
+            school: currentUserSchool,
+            orig_teacher: row.Teacher,
+            orig_term: row.Term,
+            orig_period: row.Period
+        }));
+
+        const { error } = await supabaseClient.from('sections').insert(dataToUpload);
+        if (error) { 
+            msg.textContent = "❌ Error: " + error.message; 
+            msg.style.color = "var(--danger)";
+        } else { 
+            msg.textContent = "✅ Success!"; 
+            msg.style.color = "var(--success)";
+            fetchCount(); 
+        }
+    };
+
+    document.getElementById('clear-db-btn').onclick = async () => {
+        if(confirm(`⚠️ Delete all data for ${currentUserSchool}?`)) {
+            await supabaseClient.from('sections').delete().eq('school', currentUserSchool);
+            fetchCount();
+        }
+    };
+
+    checkUser();
+</script>
+</body>
+</html>
