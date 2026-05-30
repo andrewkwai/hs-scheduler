@@ -116,6 +116,7 @@
                 document.getElementById('auth-section').style.display = 'none';
                 document.getElementById('app-section').style.display = 'block';
                 document.getElementById('user-name').textContent = `${user.user_metadata.full_name} (${currentUserSchool})`;
+                document.getElementById('user-name').textContent = (user.user_metadata.full_name || 'User') + " (" + currentUserSchool + ")";
                 document.getElementById('db-school-label').textContent = currentUserSchool;
                 
                 const schoolSelect = document.getElementById('school-select');
@@ -191,9 +192,17 @@
         msg.style.color = "#4f46e5";
         
         // Append the selected school to EVERY row before uploading
+        // SECURITY: Ensure the selected school matches the user's authorized school
+        if (selectedSchool !== currentUserSchool) {
+            msg.textContent = "❌ Security Error: You are not authorized to upload data for " + selectedSchool;
+            msg.style.color = "var(--danger)";
+            return;
+        }
+
         const dataToUpload = parsedData.map(row => ({
             ...row,
             school: selectedSchool
+            school: currentUserSchool // Use the verified school from checkUser()
         }));
 
         const { error } = await supabaseClient.from('sections').insert(dataToUpload);

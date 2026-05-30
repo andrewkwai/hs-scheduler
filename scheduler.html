@@ -191,23 +191,41 @@
         
         const source = allSections.find(s => s.id == id);
 
+        // 1. Validations
         if(lockedTeachers.has(td.dataset.teacher)) return alert("Teacher Locked");
-        if(document.getElementById('lock-rows').checked && source.Period !== td.dataset.period) return alert("Constrain Active: Cannot switch periods.");
+        if(document.getElementById('lock-rows').checked && source.Period !== td.dataset.period) {
+            alert("Constrain Active: Cannot switch periods.");
+            return;
+        }
 
         document.getElementById('save-status').textContent = "⏳ Syncing...";
         document.getElementById('save-status').style.color = "#fbbf24";
 
-        const { error } = await supabaseClient.from('sections').update({ 
-            Teacher: td.dataset.teacher, Term: td.dataset.term, Period: td.dataset.period 
-        }).eq('id', id);
+        // 2. The Update
+        const { data, error } = await supabaseClient
+            .from('sections')
+            .update({ 
+                Teacher: td.dataset.teacher, 
+                Term: td.dataset.term, 
+                Period: td.dataset.period 
+            })
+            .eq('id', id)
+            .eq('school', currentUserSchool) // Safety: ensures you only edit your school
+            .select(); // Critical: confirms the row still exists and is visible to you
 
-        if(!error) { 
+        if(!error && data && data.length > 0) { 
             document.getElementById('save-status').textContent = "✅ Saved"; 
             document.getElementById('save-status').style.color = "#34d399"; 
-            init(); 
+            
+            // Update local data without a full refresh to prevent "flicker"
+            const index = allSections.findIndex(s => s.id == id);
+            allSections[index] = data[0]; 
+            renderGrid(); 
         } else {
-            alert("Error saving to database.");
+            console.error("Save Error:", error);
+            alert("Error saving: " + (error ? error.message : "Row visibility lost"));
             document.getElementById('save-status').textContent = "❌ Error";
+            renderGrid(); // Put the card back where it was
         }
     }
 
