@@ -69,23 +69,34 @@
 
             teachers.forEach(t => {
                 const td = document.createElement('td');
-                td.dataset.teacher = t; td.dataset.term = p.term; td.dataset.period = p.per;
+                td.dataset.teacher = t; 
+                td.dataset.term = p.term; 
+                td.dataset.period = p.per;
+                
+                // Create the scrollable container
+                const scrollWrapper = document.createElement('div');
+                scrollWrapper.className = 'cell-scroll-wrapper';
                 
                 td.ondragover = e => e.preventDefault();
                 td.ondragenter = () => { if(!lockedTeachers.has(t)) td.classList.add('drop-target'); };
                 td.ondragleave = () => td.classList.remove('drop-target');
                 td.ondrop = handleDrop;
 
-                allSections.filter(s => s.Teacher === t && s.Term === p.term && s.Period === p.per)
-                    .forEach(s => {
-                        const card = document.createElement('div');
-                        card.className = 'course-card';
-                        card.draggable = !lockedTeachers.has(t);
-                        card.innerHTML = `<strong>${s.Course}</strong><br>${s.CrsName}`;
-                        card.ondragstart = e => { e.dataTransfer.setData('sectionId', s.id); card.classList.add('dragging'); };
-                        card.ondragend = () => card.classList.remove('dragging');
-                        td.appendChild(card);
-                    });
+                const matches = allSections.filter(s => s.Teacher === t && s.Term === p.term && s.Period === p.per);
+                matches.forEach(s => {
+                    const card = document.createElement('div');
+                    card.className = 'course-card';
+                    card.draggable = !lockedTeachers.has(t);
+                    card.innerHTML = `<strong>${s.Course}</strong><br>${s.CrsName}`;
+                    card.ondragstart = e => { 
+                        e.dataTransfer.setData('sectionId', s.id); 
+                        card.classList.add('dragging'); 
+                    };
+                    card.ondragend = () => card.classList.remove('dragging');
+                    scrollWrapper.appendChild(card); // Add card to the WRAPPER
+                });
+                
+                td.appendChild(scrollWrapper); // Add the wrapper to the CELL
                 tr.appendChild(td);
             });
             body.appendChild(tr);
