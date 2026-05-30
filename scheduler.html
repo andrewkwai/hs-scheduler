@@ -164,7 +164,7 @@
                         card.draggable = !lockedTeachers.has(t);
                         if(lockedTeachers.has(t)) card.style.cursor = 'not-allowed';
                         
-                        card.innerHTML = `<strong>${s.Course}</strong><span>${s.CrsName}</span>`;
+                        card.innerHTML = `<strong>${s.Course}-${s.Section}</strong><span>${s.CrsName}</span>`;
                         
                         card.ondragstart = e => { 
                             e.dataTransfer.setData('sectionId', s.id); 
