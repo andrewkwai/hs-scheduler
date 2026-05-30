@@ -90,6 +90,8 @@ button:active { transform: translateY(0); }
     background: #1f2937; color: white; padding: 12px 24px; 
     height: 60px; box-sizing: border-box;
     box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    position: relative;
+    z-index: 100;
 }
 
 /* SCHEDULER GRID */
@@ -117,42 +119,49 @@ th, td {
     padding: 0 !important; 
     vertical-align: top;
     background: var(--card-bg);
-    position: relative !important; 
 }
 
-/* STICKY HEADERS */
+/* --- STICKY HEADERS LOGIC --- */
+
+/* Side Column (Periods) */
 .period-header { 
     position: sticky; 
     left: 0; 
-    background: #374151 !important; color: white; 
-    z-index: 10; 
-    width: 100px !important; min-width: 100px !important; 
-    font-weight: 600; font-size: 14px;
-    text-align: center; vertical-align: middle;
-    height: 75px !important; 
+    background: #374151 !important; 
+    color: white; 
+    z-index: 20; /* High priority to stay above cards */
+    width: 100px !important; 
+    min-width: 100px !important; 
+    font-weight: 600; 
+    font-size: 14px;
+    text-align: center; 
+    vertical-align: middle;
 }
 
-/* Corner cell: stick to both top and left, and stay on top of other headers */
-thead .period-header {
-    top: 0;
-    z-index: 20;
-}
-
-/* OVERRIDE HEIGHT FOR TEACHERS */
+/* Top Row (Teachers) */
 .teacher-header { 
-    position: sticky; top: 0; 
-    background: #f9fafb !important; z-index: 5; 
+    position: sticky; 
+    top: 0; 
+    background: #f9fafb !important; 
+    z-index: 10; /* Lower than Period Header for corner overlap */
     text-align: center; 
     border-top: 1px solid var(--border-color);
     border-bottom: 3px solid var(--primary);
     padding: 12px 8px !important;
-    color: var(--text-main); font-weight: 600;
+    color: var(--text-main); 
+    font-weight: 600;
     height: 75px !important; 
-    max-height: none !important;
-    min-height: 60px !important;
 }
 
-/* SCROLLABLE CELL WRAPPER - THE ABSOLUTE POSITION TRICK */
+/* The Top-Left Corner Cell */
+thead th.period-header {
+    top: 0;
+    left: 0;
+    z-index: 30; /* Highest priority: stays fixed on both axes */
+    background: #1f2937 !important;
+}
+
+/* SCROLLABLE CELL WRAPPER */
 .cell-scroll-wrapper {
     position: absolute !important; 
     top: 0; bottom: 0; left: 0; right: 0; 
@@ -161,11 +170,9 @@ thead .period-header {
     box-sizing: border-box;
 }
 
-/* Modern mini scrollbar */
+/* Mini Scrollbar */
 .cell-scroll-wrapper::-webkit-scrollbar { width: 6px; }
-.cell-scroll-wrapper::-webkit-scrollbar-track { background: transparent; }
 .cell-scroll-wrapper::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
-.cell-scroll-wrapper::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 
 /* EXCEL-LIKE ROW RESIZER */
 .row-resizer {
@@ -176,7 +183,7 @@ thead .period-header {
     height: 6px;
     background: transparent;
     cursor: ns-resize; 
-    z-index: 20;
+    z-index: 40;
     transition: background 0.2s;
 }
 
