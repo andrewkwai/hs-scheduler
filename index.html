@@ -33,20 +33,27 @@
         </div>
         
         <div class="card">
-            <h3 style="margin-bottom: 8px;">Database Status</h3>
+            <h3 style="margin-bottom: 8px;">Database Status for <span id="db-school-label" style="color:var(--primary);">...</span></h3>
             <p style="font-size: 24px; font-weight: 700; color: var(--primary); margin: 0;">
                 <span id="db-count">0</span> <span style="font-size: 16px; color: var(--text-muted); font-weight: 400;">Sections Loaded</span>
             </p>
             <div class="controls">
                 <button id="refresh-db-btn">Refresh</button>
-                <button id="clear-db-btn">Clear Data</button>
+                <button id="clear-db-btn">Clear My School's Data</button>
             </div>
         </div>
 
         <div class="card">
             <h3>Upload Sections Report</h3>
-            <p style="color: var(--text-muted); font-size: 14px;">Upload a fresh <strong>.csv</strong> to update the master database.</p>
+            <p style="color: var(--text-muted); font-size: 14px;">Select the target school and upload a fresh <strong>.csv</strong> to update the database.</p>
             <div class="controls" style="flex-direction: column;">
+                
+                <select id="school-select" style="padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; width: 100%; max-width: 300px; font-family: 'Inter', sans-serif; font-size: 14px;">
+                    <option value="" disabled selected>-- Select School --</option>
+                    <option value="FXH">FXH</option>
+                    <option value="PIH">PIH</option>
+                </select>
+
                 <input type="file" id="csv-file" accept=".csv" style="padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; width: 100%; max-width: 300px;">
                 <button id="save-db-btn">Push to Database</button>
             </div>
@@ -59,7 +66,9 @@
     const SUPABASE_URL = 'https://xzfseofviwlifygfkhdp.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_SQ2VKEbyWqfShaw5EfypgQ_esez7tdt';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    
     let parsedData = [];
+    let currentUserSchool = null; // Store the user's assigned school
 
     document.getElementById('login-btn').onclick = async () => {
         await supabaseClient.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + window.location.pathname } });
@@ -77,7 +86,6 @@
         const { data: { user } } = await supabaseClient.auth.getUser();
         
         if (user) {
-            // SECURITY CHECK: Is this user in our database?
             const { data: allowedUser, error } = await supabaseClient
                 .from('allowed_users')
                 .select('*')
@@ -85,30 +93,48 @@
                 .single();
 
             if (allowedUser) {
-                // Legit user found! Show the app.
+                currentUserSchool = allowedUser.school;
+                
+                if (!currentUserSchool) {
+                    alert("You are authorized, but no school is assigned to your account. Please contact the administrator.");
+                    return;
+                }
+
                 document.getElementById('auth-section').style.display = 'none';
                 document.getElementById('app-section').style.display = 'block';
-                document.getElementById('user-name').textContent = user.user_metadata.full_name;
+                document.getElementById('user-name').textContent = `${user.user_metadata.full_name} (${currentUserSchool})`;
+                document.getElementById('db-school-label').textContent = currentUserSchool;
+                
+                // Pre-select their school in the dropdown if it matches an option
+                const schoolSelect = document.getElementById('school-select');
+                if (Array.from(schoolSelect.options).some(opt => opt.value === currentUserSchool)) {
+                    schoolSelect.value = currentUserSchool;
+                }
+
                 fetchCount();
             } else {
-                // Logged in to Google, but not authorized
                 document.getElementById('auth-section').style.display = 'block';
                 document.getElementById('auth-section').innerHTML = `
                     <h2 style="color: var(--danger); margin-bottom: 10px;">Access Denied</h2>
-                    <p style="color: var(--text-muted); margin-bottom: 24px;">Your email (<strong>${user.email}</strong>) is not authorized to view this scheduling system.</p>
+                    <p style="color: var(--text-muted); margin-bottom: 24px;">Your email (<strong>${user.email}</strong>) is not authorized.</p>
                     <button onclick="supabaseClient.auth.signOut().then(() => window.location.reload())" style="background: var(--danger); width: 100%; padding: 12px;">Sign Out</button>
                 `;
                 document.getElementById('app-section').style.display = 'none';
             }
         } else {
-            // Not logged in at all
             document.getElementById('auth-section').style.display = 'block';
             document.getElementById('app-section').style.display = 'none';
         }
     }
 
     async function fetchCount() {
-        const { count } = await supabaseClient.from('sections').select('*', { count: 'exact', head: true });
+        if (!currentUserSchool) return;
+        // ONLY count sections that match the user's assigned school
+        const { count } = await supabaseClient
+            .from('sections')
+            .select('*', { count: 'exact', head: true })
+            .eq('school', currentUserSchool);
+        
         document.getElementById('db-count').textContent = count || 0;
     }
 
@@ -134,16 +160,30 @@
     });
 
     document.getElementById('save-db-btn').onclick = async () => {
+        const selectedSchool = document.getElementById('school-select').value;
         const msg = document.getElementById('status-msg');
+
+        if (!selectedSchool) {
+            msg.textContent = "❌ Please select a school from the dropdown first.";
+            msg.style.color = "var(--danger)";
+            return;
+        }
+
         msg.textContent = "⏳ Uploading to Supabase...";
         msg.style.color = "#4f46e5";
         
-        const { error } = await supabaseClient.from('sections').insert(parsedData);
+        // Append the selected school to EVERY row before uploading
+        const dataToUpload = parsedData.map(row => ({
+            ...row,
+            school: selectedSchool
+        }));
+
+        const { error } = await supabaseClient.from('sections').insert(dataToUpload);
         if (error) { 
             msg.textContent = "❌ Error: " + error.message; 
             msg.style.color = "var(--danger)"; 
         } else { 
-            msg.textContent = "✅ Success! Data pushed."; 
+            msg.textContent = `✅ Success! Data pushed to ${selectedSchool}.`; 
             msg.style.color = "var(--success)";
             document.getElementById('save-db-btn').style.display = 'none';
             fetchCount(); 
@@ -151,8 +191,11 @@
     };
 
     document.getElementById('clear-db-btn').onclick = async () => {
-        if(confirm("⚠️ WARNING: This will delete ALL sections from the database. Proceed?")) {
-            await supabaseClient.from('sections').delete().neq('id', 0);
+        if (!currentUserSchool) return;
+        
+        if(confirm(`⚠️ WARNING: This will delete ALL sections for ${currentUserSchool}. It will not affect other schools. Proceed?`)) {
+            // SECURITY: Only delete where school = user's school
+            await supabaseClient.from('sections').delete().eq('school', currentUserSchool);
             fetchCount();
         }
     };

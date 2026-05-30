@@ -11,7 +11,7 @@
 
 <div class="controls-bar">
     <a href="index.html" style="color: #9ca3af; text-decoration: none; font-size: 14px; font-weight: 500;">← Dashboard</a>
-    <strong style="font-size: 18px;">Master Grid</strong>
+    <strong style="font-size: 18px;">Master Grid <span id="school-label" style="color: #818cf8; margin-left: 8px;"></span></strong>
     
     <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; margin-left: 20px; cursor: pointer;">
         <input type="checkbox" id="lock-rows" checked style="cursor: pointer; width: 16px; height: 16px;"> 
@@ -37,6 +37,7 @@
     let allSections = [];
     let teachers = [];
     let lockedTeachers = new Set();
+    let currentUserSchool = null;
 
     const periods = [
         {term: 'S1', per: '1(A)'}, {term: 'S1', per: '2(A)'}, {term: 'S1', per: '3(A)'}, {term: 'S1', per: '4(A)'},
@@ -44,25 +45,30 @@
     ];
 
     async function init() {
-        // 1. Check for active session
         const { data: { user } } = await supabaseClient.auth.getUser();
         if (!user) { window.location.href = 'index.html'; return; }
 
-        // 2. Security Check: Is the user authorized?
         const { data: allowedUser } = await supabaseClient
             .from('allowed_users')
             .select('*')
             .eq('email', user.email)
             .single();
 
-        if (!allowedUser) {
-            alert("Unauthorized access. Redirecting to dashboard.");
+        if (!allowedUser || !allowedUser.school) {
+            alert("Unauthorized access or missing school assignment.");
             window.location.href = 'index.html';
             return;
         }
 
-        // 3. Load the data
-        const { data } = await supabaseClient.from('sections').select('*');
+        currentUserSchool = allowedUser.school;
+        document.getElementById('school-label').textContent = `[${currentUserSchool}]`;
+
+        // SECURITY: Fetch ONLY sections belonging to this user's school
+        const { data } = await supabaseClient
+            .from('sections')
+            .select('*')
+            .eq('school', currentUserSchool);
+            
         allSections = data || [];
         teachers = [...new Set(allSections.map(s => s.Teacher))].filter(t => t).sort();
         renderGrid();
@@ -77,7 +83,6 @@
             const th = document.createElement('th');
             th.className = 'teacher-header';
             
-            // Format the teacher name nicely
             let displayName = t;
             if (t.includes(',')) {
                 const parts = t.split(',');
@@ -98,12 +103,10 @@
         periods.forEach(p => {
             const tr = document.createElement('tr');
             
-            // PERIOD HEADER SETUP
             const tdLabel = document.createElement('td');
             tdLabel.className = 'period-header';
             tdLabel.innerHTML = `${p.term}<br><span style="font-size:11px; color:#9ca3af; font-weight:400;">Per ${p.per}</span>`;
             
-            // EXCEL-LIKE ROW RESIZER LOGIC
             const resizer = document.createElement('div');
             resizer.className = 'row-resizer';
             tdLabel.appendChild(resizer);
@@ -134,7 +137,6 @@
 
             tr.appendChild(tdLabel);
 
-            // RENDER TEACHER CELLS
             teachers.forEach(t => {
                 const td = document.createElement('td');
                 td.dataset.teacher = t; td.dataset.term = p.term; td.dataset.period = p.per;
