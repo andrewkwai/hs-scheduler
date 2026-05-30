@@ -13,7 +13,7 @@
 <div class="container">
     <div id="auth-section" class="card" style="max-width: 400px; margin: 100px auto; padding: 40px 20px;">
         <h1 style="color: var(--primary); margin-bottom: 10px;">HS Scheduler</h1>
-        <p style="color: var(--text-muted); margin-bottom: 24px;">Sign in to access the master sandbox.</p>
+        <p id="auth-status" style="color: var(--text-muted); margin-bottom: 24px;">Sign in to access the master sandbox.</p>
         <button id="login-btn" style="width: 100%; padding: 12px;">Sign in with Google</button>
     </div>
 </div>
@@ -23,20 +23,49 @@
     const SUPABASE_KEY = 'sb_publishable_SQ2VKEbyWqfShaw5EfypgQ_esez7tdt';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // If user is already logged in, send them straight to the dashboard
-    supabaseClient.auth.onAuthStateChange((event, session) => {
+    // THE BOUNCER LOGIC
+    async function checkAccess() {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+
         if (session) {
-            window.location.href = 'dashboard.html';
+            const user = session.user;
+            const statusText = document.getElementById('auth-status');
+            statusText.textContent = "Checking authorization...";
+
+            // Validate against your allowed_users table
+            const { data: allowedUser, error } = await supabaseClient
+                .from('allowed_users')
+                .select('*')
+                .eq('email', user.email)
+                .maybeSingle();
+
+            if (allowedUser) {
+                // SUCCESS: Proceed to dashboard
+                window.location.href = 'dashboard.html';
+            } else {
+                // FAILURE: Unauthorized email
+                statusText.textContent = "❌ Access Denied: Your account is not authorized.";
+                statusText.style.color = "var(--danger)";
+                
+                // Sign them out so they don't get stuck in a loop
+                await supabaseClient.auth.signOut();
+            }
         }
+    }
+
+    // Run every time the page loads/auth state changes
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+        if (session) checkAccess();
     });
 
     document.getElementById('login-btn').onclick = async () => {
         const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         
-        // Check if we are on GitHub and append the folder name
+        // IMPORTANT: We redirect back to INDEX now, not Dashboard.
+        // This ensures the bouncer check runs before the user ever sees the app.
         const redirectUrl = isLocal 
-            ? window.location.origin + '/dashboard.html' 
-            : 'https://andrewkwai.github.io/hs-scheduler/dashboard.html';
+            ? window.location.origin + '/index.html' 
+            : 'https://andrewkwai.github.io/hs-scheduler/index.html';
 
         await supabaseClient.auth.signInWithOAuth({ 
             provider: 'google', 
@@ -45,6 +74,9 @@
             } 
         });
     };
+
+    // Initial check on load
+    checkAccess();
 </script>
 </body>
 </html>
