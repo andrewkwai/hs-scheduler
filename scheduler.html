@@ -119,10 +119,12 @@
         document.getElementById('school-label').textContent = `[${currentUserSchool}]`;
 
         // NEW: Fetch the Subject/Prefix map from your new table
-        const { data: subData } = await supabaseClient.from('course_subjects').select('course_prefix, subject_area');
-        if (subData) {
+        const { data: subData, error: subError } = await supabaseClient.from('course_subjects').select('course_prefix, subject_area');
+        if (subError) {
+            console.error("Error fetching course_subjects mapping:", subError.message);
+        } else if (subData) {
             subData.forEach(row => {
-                subjectLookup[row.course_prefix] = row.subject_area;
+                if (row.course_prefix) subjectLookup[row.course_prefix.trim()] = row.subject_area;
             });
         }
 
@@ -147,7 +149,7 @@
         if (teacherSections.length === 0) return "Other";
         const subjectCounts = {};
         teacherSections.forEach(s => {
-            const prefix = s.Course ? s.Course.substring(0, 3) : "";
+            const prefix = s.Course ? s.Course.trim().substring(0, 3) : "";
             const subject = subjectLookup[prefix] || "Other";
             subjectCounts[subject] = (subjectCounts[subject] || 0) + 1;
         });
@@ -269,7 +271,7 @@
                         if(lockedTeachers.has(t)) card.style.cursor = 'not-allowed';
                         
                         // NEW: Color Coding Logic
-                        const prefix = s.Course ? s.Course.substring(0, 3) : "";
+                        const prefix = s.Course ? s.Course.trim().substring(0, 3) : "";
                         const subject = subjectLookup[prefix] || "Other";
                         const borderCol = subjectColors[subject] || "#94a3b8"; // Default slate
                         card.style.borderLeft = `4px solid ${borderCol}`;
