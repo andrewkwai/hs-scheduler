@@ -2,63 +2,129 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>HS Scheduler</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HS Scheduler - VP Sandbox</title>
+    <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { border: 1px solid #ccc; padding: 2rem; border-radius: 8px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        button { background: #4285F4; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 16px; }
-        #app-section { display: none; }
-    </style>
 </head>
 <body>
 
-    <div class="card">
+<div class="container">
+    <div id="auth-section">
         <h1>HS Scheduler</h1>
-        
-        <div id="auth-section">
-            <button id="login-btn">Sign in with Google</button>
-        </div>
-
-        <div id="app-section">
-            <p>Welcome, VP! Authentication Successful.</p>
-            <button id="logout-btn" style="background: #db4437;">Sign Out</button>
-        </div>
+        <p>Please sign in to access the Master Schedule Sandbox.</p>
+        <button id="login-btn">Sign in with Google</button>
     </div>
 
-    <script>
-        // REPLACE THESE with your actual keys from Supabase Settings > API
-        const SUPABASE_URL = 'https://xzfseofviwlifygfkhdp.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_SQ2VKEbyWqfShaw5EfypgQ_esez7tdt';
+    <div id="app-section">
+        <h1>VP Dashboard</h1>
+        <p>Step 1: Upload <strong>Sections.csv</strong> &nbsp; | &nbsp; Step 2: Save to Database</p>
+        
+        <div class="card">
+            <div class="controls">
+                <input type="file" id="csv-file" accept=".csv">
+                <button id="save-db-btn">Push to Supabase</button>
+            </div>
+            <div id="status-msg"></div>
+        </div>
 
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        <div id="schedule-output">
+            <table id="schedule-table" style="display:none;">
+                <thead><tr id="table-headers"></tr></thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </div>
 
-        // Login Logic
-        document.getElementById('login-btn').onclick = async () => {
-            await supabaseClient.auth.signInWithOAuth({
-                provider: 'google',
-                options: {
-                    // Redirects back to your GitHub Pages site
-                    redirectTo: window.location.origin + window.location.pathname
-                }
-            });
-        };
+        <button id="logout-btn">Sign Out</button>
+    </div>
+</div>
 
-        // Logout Logic
-        document.getElementById('logout-btn').onclick = async () => {
-            await supabaseClient.auth.signOut();
-            window.location.reload();
-        };
+<script>
+    const SUPABASE_URL = 'https://xzfseofviwlifygfkhdp.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_SQ2VKEbyWqfShaw5EfypgQ_esez7tdt';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    let parsedData = [];
 
-        // Check login status on page load
-        async function checkUser() {
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            if (user) {
-                document.getElementById('auth-section').style.display = 'none';
-                document.getElementById('app-section').style.display = 'block';
+    document.getElementById('login-btn').onclick = async () => {
+        await supabaseClient.auth.signInWithOAuth({
+            provider: 'google',
+            options: { redirectTo: window.location.origin + window.location.pathname }
+        });
+    };
+
+    document.getElementById('logout-btn').onclick = async () => {
+        await supabaseClient.auth.signOut();
+        window.location.reload();
+    };
+
+    async function checkUser() {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (user) {
+            document.getElementById('auth-section').style.display = 'none';
+            document.getElementById('app-section').style.display = 'block';
+        } else {
+            document.getElementById('auth-section').style.display = 'block';
+        }
+    }
+    checkUser();
+
+    document.getElementById('csv-file').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => parseCSV(event.target.result);
+        reader.readAsText(file);
+    });
+
+    function parseCSV(text) {
+        const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
+        const lines = text.split(/\r?\n/);
+        const headers = lines[0].split(regex).map(h => h.replace(/"/g, '').trim());
+        
+        const headerRow = document.getElementById('table-headers');
+        const tableBody = document.getElementById('table-body');
+        headerRow.innerHTML = ''; tableBody.innerHTML = '';
+        parsedData = [];
+
+        headers.forEach(h => {
+            const th = document.createElement('th');
+            th.textContent = h;
+            headerRow.appendChild(th);
+        });
+
+        for (let i = 1; i < lines.length; i++) {
+            if (!lines[i].trim()) continue;
+            const cells = lines[i].split(regex).map(c => c.replace(/"/g, '').trim());
+            let rowObj = {};
+            headers.forEach((h, idx) => rowObj[h] = cells[idx]);
+            parsedData.push(rowObj);
+
+            if (i < 21) {
+                const tr = document.createElement('tr');
+                cells.forEach(c => {
+                    const td = document.createElement('td');
+                    td.textContent = c;
+                    tr.appendChild(td);
+                });
+                tableBody.appendChild(tr);
             }
         }
-        checkUser();
-    </script>
+        document.getElementById('schedule-table').style.display = 'table';
+        document.getElementById('save-db-btn').style.display = 'inline-block';
+    }
+
+    document.getElementById('save-db-btn').onclick = async () => {
+        const msg = document.getElementById('status-msg');
+        msg.textContent = "Uploading...";
+        const { error } = await supabaseClient.from('sections').insert(parsedData);
+        if (error) {
+            msg.style.color = "red";
+            msg.textContent = "Error: " + error.message;
+        } else {
+            msg.style.color = "green";
+            msg.textContent = "Success! " + parsedData.length + " rows saved.";
+        }
+    };
+</script>
 </body>
 </html>
