@@ -62,8 +62,12 @@
             const th = document.createElement('th');
             th.className = 'teacher-header';
             
-            // Format the name nicely (split by comma if it exists)
-            const displayName = t.includes(',') ? t.split(',')[0] + ', ' + t.split(',')[1][0].trim() + '.' : t;
+            // FIXED TEACHER NAME PARSING
+            let displayName = t;
+            if (t.includes(',')) {
+                const parts = t.split(',');
+                displayName = `${parts[0].trim()}, ${parts[1].trim()}`;
+            }
 
             th.innerHTML = `
                 <div style="margin-bottom: 8px;">${displayName}</div>
@@ -71,27 +75,60 @@
                     <input type="checkbox" onchange="toggleLock('${t}', this.checked)" ${lockedTeachers.has(t) ? 'checked' : ''}> Lock
                 </label>
             `;
-            if(lockedTeachers.has(t)) th.style.background = '#fee2e2'; // Light red if locked
+            if(lockedTeachers.has(t)) th.style.background = '#fee2e2';
             head.appendChild(th);
         });
 
         body.innerHTML = '';
         periods.forEach(p => {
             const tr = document.createElement('tr');
+            
+            // PERIOD HEADER SETUP
             const tdLabel = document.createElement('td');
             tdLabel.className = 'period-header';
             tdLabel.innerHTML = `${p.term}<br><span style="font-size:11px; color:#9ca3af; font-weight:400;">Per ${p.per}</span>`;
+            
+            // EXCEL-LIKE ROW RESIZER LOGIC
+            const resizer = document.createElement('div');
+            resizer.className = 'row-resizer';
+            tdLabel.appendChild(resizer);
+
+            resizer.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                const startY = e.clientY;
+                const startHeight = tdLabel.offsetHeight;
+                resizer.classList.add('active');
+
+                function onMouseMove(e) {
+                    // Calculate new height, prevent it from getting smaller than 80px
+                    const newHeight = Math.max(80, startHeight + (e.clientY - startY)); 
+                    
+                    // Apply new height dynamically to all cells in this specific row
+                    Array.from(tr.children).forEach(cell => {
+                        cell.style.setProperty('height', newHeight + 'px', 'important');
+                        cell.style.setProperty('max-height', newHeight + 'px', 'important');
+                    });
+                }
+
+                function onMouseUp() {
+                    resizer.classList.remove('active');
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                }
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+            // END RESIZER LOGIC
+
             tr.appendChild(tdLabel);
 
+            // RENDER TEACHER CELLS
             teachers.forEach(t => {
                 const td = document.createElement('td');
-                td.dataset.teacher = t; 
-                td.dataset.term = p.term; 
-                td.dataset.period = p.per;
-                
-                if(lockedTeachers.has(t)) td.style.background = '#fafafa'; // Slight dim for locked columns
+                td.dataset.teacher = t; td.dataset.term = p.term; td.dataset.period = p.per;
+                if(lockedTeachers.has(t)) td.style.background = '#fafafa';
 
-                // CRITICAL: The wrapper that allows scrolling
                 const scrollWrapper = document.createElement('div');
                 scrollWrapper.className = 'cell-scroll-wrapper';
                 
@@ -107,20 +144,13 @@
                         card.draggable = !lockedTeachers.has(t);
                         if(lockedTeachers.has(t)) card.style.cursor = 'not-allowed';
                         
-                        // Nicer formatting for the card
-                        card.innerHTML = `<strong>${s.Course}</strong><span style="color:#6b7280;">${s.CrsName}</span>`;
-                        
-                        card.ondragstart = e => { 
-                            e.dataTransfer.setData('sectionId', s.id); 
-                            card.classList.add('dragging'); 
-                        };
+                        card.innerHTML = `<strong>${s.Course}</strong><span>${s.CrsName}</span>`;
+                        card.ondragstart = e => { e.dataTransfer.setData('sectionId', s.id); card.classList.add('dragging'); };
                         card.ondragend = () => card.classList.remove('dragging');
                         
-                        // Append to WRAPPER, not directly to TD
                         scrollWrapper.appendChild(card);
                     });
                 
-                // Append WRAPPER to TD
                 td.appendChild(scrollWrapper);
                 tr.appendChild(td);
             });
@@ -138,17 +168,14 @@
         const td = e.currentTarget;
         td.classList.remove('drop-target');
         const id = e.dataTransfer.getData('sectionId');
-        
-        // Ensure we grabbed a valid ID
         if (!id) return;
         
         const source = allSections.find(s => s.id == id);
-
         if(lockedTeachers.has(td.dataset.teacher)) return alert("Teacher Locked");
         if(document.getElementById('lock-rows').checked && source.Period !== td.dataset.period) return alert("Constrain Active: Cannot switch periods.");
 
         document.getElementById('save-status').textContent = "⏳ Syncing...";
-        document.getElementById('save-status').style.color = "#fbbf24"; // yellow
+        document.getElementById('save-status').style.color = "#fbbf24";
 
         const { error } = await supabaseClient.from('sections').update({ 
             Teacher: td.dataset.teacher, Term: td.dataset.term, Period: td.dataset.period 
@@ -156,7 +183,7 @@
 
         if(!error) { 
             document.getElementById('save-status').textContent = "✅ Saved"; 
-            document.getElementById('save-status').style.color = "#34d399"; // green
+            document.getElementById('save-status').style.color = "#34d399";
             init(); 
         } else {
             alert("Error saving to database.");

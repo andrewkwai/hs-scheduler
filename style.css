@@ -103,7 +103,7 @@ button:active { transform: translateY(0); }
 }
 
 table { 
-    border-collapse: collapse; /* Changed to collapse to fix spacing issues */
+    border-collapse: collapse; 
     table-layout: fixed !important; 
     width: max-content; 
 }
@@ -118,8 +118,6 @@ th, td {
     padding: 0 !important; 
     vertical-align: top;
     background: var(--card-bg);
-    
-    /* CRITICAL FIX: Makes the inner absolute wrapper work */
     position: relative !important; 
 }
 
@@ -133,6 +131,7 @@ th, td {
     text-align: center; vertical-align: middle;
 }
 
+/* OVERRIDE HEIGHT FOR TEACHERS */
 .teacher-header { 
     position: sticky; top: 0; 
     background: #f9fafb !important; z-index: 5; 
@@ -140,12 +139,15 @@ th, td {
     border-bottom: 3px solid var(--primary);
     padding: 12px 8px !important;
     color: var(--text-main); font-weight: 600;
+    height: auto !important; 
+    max-height: none !important;
+    min-height: 60px !important;
 }
 
 /* SCROLLABLE CELL WRAPPER - THE ABSOLUTE POSITION TRICK */
 .cell-scroll-wrapper {
-    position: absolute !important; /* Takes it out of normal table flow */
-    top: 0; bottom: 0; left: 0; right: 0; /* Stretches to fill the 150px cell */
+    position: absolute !important; 
+    top: 0; bottom: 0; left: 0; right: 0; 
     overflow-y: auto !important; 
     padding: 8px;
     box-sizing: border-box;
@@ -157,6 +159,23 @@ th, td {
 .cell-scroll-wrapper::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
 .cell-scroll-wrapper::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 
+/* EXCEL-LIKE ROW RESIZER */
+.row-resizer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 6px;
+    background: transparent;
+    cursor: ns-resize; 
+    z-index: 20;
+    transition: background 0.2s;
+}
+
+.row-resizer:hover, .row-resizer.active {
+    background: var(--primary);
+}
+
 /* COURSE CARDS */
 .course-card {
     background: var(--card-bg); 
@@ -165,11 +184,8 @@ th, td {
     border-radius: 6px;
     padding: 8px 10px; 
     margin-bottom: 8px; 
-    
-    /* Removed fixed height so cards can expand for long text */
     height: auto !important; 
     min-height: 60px;
-    
     font-size: 11px;
     line-height: 1.4;
     box-sizing: border-box;
@@ -187,12 +203,10 @@ th, td {
     display: block;
     font-size: 12px;
     font-weight: 700;
-    /* Removed nowrap so text can flow to the next line */
     white-space: normal; 
 }
 
 .course-card span {
-    /* Ensures long course names wrap properly */
     display: block;
     white-space: normal;
     word-wrap: break-word; 
