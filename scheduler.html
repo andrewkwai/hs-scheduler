@@ -12,12 +12,16 @@
 
 <div class="controls-bar">
     <a href="index.html" style="color: #9ca3af; text-decoration: none; font-size: 14px; font-weight: 500;">← Dashboard</a>
-    <strong style="font-size: 18px;">Master Grid <span id="school-label" style="color: #818cf8; margin-left: 8px;"></span></strong>
+    <strong style="font-size: 18px; margin-left: 15px;">Master Grid <span id="school-label" style="color: #818cf8; margin-left: 8px;"></span></strong>
     
     <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; margin-left: 20px; cursor: pointer;">
         <input type="checkbox" id="lock-rows" checked style="cursor: pointer; width: 16px; height: 16px;"> 
         Constrain to Period
     </label>
+    
+    <button id="view-changes-btn" style="margin-left: 20px; background: #059669; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px;">
+        📋 View Changes
+    </button>
     
     <div style="flex-grow: 1;"></div>
     <span id="save-status" class="save-indicator">● Cloud Sync Active</span>
@@ -28,6 +32,27 @@
         <thead><tr id="teacher-headers"></tr></thead>
         <tbody id="grid-body"></tbody>
     </table>
+</div>
+
+<div id="changes-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center;">
+    <div style="background: white; padding: 30px; border-radius: 12px; width: 80%; max-width: 900px; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 15px;">
+            <h2 style="margin: 0; color: #1e293b;">Proposed Schedule Changes</h2>
+            <button id="close-modal-btn" style="background: #f1f5f9; color: #333; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Close</button>
+        </div>
+        
+        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
+            <thead>
+                <tr style="background: #f8fafc; border-bottom: 2px solid #cbd5e1;">
+                    <th style="padding: 12px; border: none;">Course</th>
+                    <th style="padding: 12px; border: none;">Original (PowerSchool)</th>
+                    <th style="padding: 12px; border: none;">New Assignment</th>
+                </tr>
+            </thead>
+            <tbody id="changes-tbody">
+                </tbody>
+        </table>
+    </div>
 </div>
 
 <script>
@@ -164,7 +189,8 @@
                         card.draggable = !lockedTeachers.has(t);
                         if(lockedTeachers.has(t)) card.style.cursor = 'not-allowed';
                         
-                        card.innerHTML = `<strong>${s.Course}-${s.Section}</strong><span>${s.CrsName}</span>`;
+                        // NEW: Updated to show Course-Section
+                        card.innerHTML = `<strong>${s.Course}-${s.Section || ''}</strong><span>${s.CrsName}</span>`;
                         
                         card.ondragstart = e => { 
                             e.dataTransfer.setData('sectionId', s.id); 
@@ -216,14 +242,13 @@
                 Period: td.dataset.period 
             })
             .eq('id', id)
-            .eq('school', currentUserSchool) // Safety: ensures you only edit your school
-            .select(); // Critical: confirms the row still exists and is visible to you
+            .eq('school', currentUserSchool) 
+            .select(); 
 
         if(!error && data && data.length > 0) { 
             document.getElementById('save-status').textContent = "✅ Saved"; 
             document.getElementById('save-status').style.color = "#34d399"; 
             
-            // Update local data without a full refresh to prevent "flicker"
             const index = allSections.findIndex(s => s.id == id);
             allSections[index] = data[0]; 
             renderGrid(); 
@@ -231,9 +256,56 @@
             console.error("Save Error:", error);
             alert("Error saving: " + (error ? error.message : "Row visibility lost"));
             document.getElementById('save-status').textContent = "❌ Error";
-            renderGrid(); // Put the card back where it was
+            renderGrid(); 
         }
     }
+
+    // --- NEW: Changes Report Logic ---
+    document.getElementById('view-changes-btn').onclick = () => {
+        const tbody = document.getElementById('changes-tbody');
+        tbody.innerHTML = ''; 
+        
+        const changedSections = allSections.filter(s => {
+            return s.Teacher !== s.orig_teacher || 
+                   String(s.Term) !== String(s.orig_term) || 
+                   String(s.Period) !== String(s.orig_period);
+        });
+
+        if (changedSections.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding: 30px; color: #64748b;">No changes have been made from the original CSV upload.</td></tr>`;
+        } else {
+            changedSections.forEach(s => {
+                const origStr = `${s.orig_teacher} | Term: ${s.orig_term} | Per: ${s.orig_period}`;
+                const newStr = `${s.Teacher} | Term: ${s.Term} | Per: ${s.Period}`;
+                
+                tbody.innerHTML += `
+                    <tr style="border-bottom: 1px solid #e2e8f0;">
+                        <td style="padding: 12px; border: none;">
+                            <strong>${s.Course}-${s.Section || ''}</strong><br>
+                            <span style="font-size: 12px; color: #64748b;">${s.CrsName}</span>
+                        </td>
+                        <td style="padding: 12px; border: none; color: #dc2626;">
+                            <del>${origStr}</del>
+                        </td>
+                        <td style="padding: 12px; border: none; color: #059669; font-weight: 600;">
+                            ${newStr}
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+        document.getElementById('changes-modal').style.display = 'flex';
+    };
+
+    document.getElementById('close-modal-btn').onclick = () => {
+        document.getElementById('changes-modal').style.display = 'none';
+    };
+
+    document.getElementById('changes-modal').addEventListener('click', (e) => {
+        if (e.target === document.getElementById('changes-modal')) {
+            document.getElementById('changes-modal').style.display = 'none';
+        }
+    });
 
     init();
 </script>

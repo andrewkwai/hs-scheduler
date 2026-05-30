@@ -229,7 +229,10 @@
 
         const dataToUpload = parsedData.map(row => ({
             ...row,
-            school: currentUserSchool // Use the verified school from auth check
+            school: currentUserSchool, // Use the verified school from auth check
+            orig_teacher: row.Teacher,
+            orig_term: row.Term,
+            orig_period: row.Period
         }));
 
         const { error } = await supabaseClient.from('sections').insert(dataToUpload);
