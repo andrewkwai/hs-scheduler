@@ -83,29 +83,41 @@
     document.getElementById('refresh-db-btn').onclick = fetchCount;
 
     async function checkUser() {
-        const { data: { user } } = await supabaseClient.auth.getUser();
+        // 1. Get the user from the current session
+        const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
         
+        if (authError) {
+            console.error("Auth Error:", authError.message);
+            return;
+        }
+
         if (user) {
-            const { data: allowedUser, error } = await supabaseClient
+            console.log("Logged in as:", user.email);
+
+            // 2. Query the allowed_users table
+            const { data: allowedUser, error: dbError } = await supabaseClient
                 .from('allowed_users')
                 .select('*')
                 .eq('email', user.email)
-                .single();
+                .maybeSingle(); // maybeSingle returns null instead of an error if not found
+
+            if (dbError) {
+                console.error("Database Query Error:", dbError.message);
+                // This usually triggers if RLS is blocking you
+                alert("Security Error: " + dbError.message);
+                return;
+            }
 
             if (allowedUser) {
+                console.log("Authorization Success! School:", allowedUser.school);
+                
                 currentUserSchool = allowedUser.school;
                 
-                if (!currentUserSchool) {
-                    alert("You are authorized, but no school is assigned to your account. Please contact the administrator.");
-                    return;
-                }
-
                 document.getElementById('auth-section').style.display = 'none';
                 document.getElementById('app-section').style.display = 'block';
                 document.getElementById('user-name').textContent = `${user.user_metadata.full_name} (${currentUserSchool})`;
                 document.getElementById('db-school-label').textContent = currentUserSchool;
                 
-                // Pre-select their school in the dropdown if it matches an option
                 const schoolSelect = document.getElementById('school-select');
                 if (Array.from(schoolSelect.options).some(opt => opt.value === currentUserSchool)) {
                     schoolSelect.value = currentUserSchool;
@@ -113,15 +125,21 @@
 
                 fetchCount();
             } else {
+                // 3. User is logged into Google but NOT in your allowed_users table
+                console.warn("User not found in allowed_users table.");
                 document.getElementById('auth-section').style.display = 'block';
                 document.getElementById('auth-section').innerHTML = `
-                    <h2 style="color: var(--danger); margin-bottom: 10px;">Access Denied</h2>
-                    <p style="color: var(--text-muted); margin-bottom: 24px;">Your email (<strong>${user.email}</strong>) is not authorized.</p>
-                    <button onclick="supabaseClient.auth.signOut().then(() => window.location.reload())" style="background: var(--danger); width: 100%; padding: 12px;">Sign Out</button>
+                    <div style="border: 2px solid var(--danger); padding: 20px; border-radius: 12px;">
+                        <h2 style="color: var(--danger); margin-top: 0;">Access Denied</h2>
+                        <p style="color: var(--text-muted);">The account <strong>${user.email}</strong> is not on the authorized list for this system.</p>
+                        <p style="font-size: 12px; color: var(--text-muted);"><em>Note: Database lookup returned no matches.</em></p>
+                        <button onclick="supabaseClient.auth.signOut().then(() => window.location.reload())" style="background: var(--danger); width: 100%; margin-top: 10px;">Sign Out & Try Another Account</button>
+                    </div>
                 `;
                 document.getElementById('app-section').style.display = 'none';
             }
         } else {
+            // No one is logged in
             document.getElementById('auth-section').style.display = 'block';
             document.getElementById('app-section').style.display = 'none';
         }
