@@ -33,7 +33,7 @@ h1, h2, h3 {
     padding: 0 20px;
 }
 
-/* CARDS (DASHBOARD) */
+/* CARDS */
 .card {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
@@ -111,7 +111,7 @@ button:active {
     display: none;
 }
 
-/* SCHEDULER NAV BAR */
+/* NAV BAR */
 .controls-bar {
     display: flex;
     gap: 24px;
@@ -124,7 +124,7 @@ button:active {
     box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
 }
 
-/* SCHEDULER GRID */
+/* GRID CONTAINER */
 .grid-container {
     width: 100vw;
     height: calc(100vh - 60px);
@@ -139,12 +139,48 @@ button:active {
     width: max-content;
 }
 
-thead {
+/* HEADER ROW (teacher names) */
+.teacher-header {
     position: sticky;
     top: 0;
-    z-index: 15;
+    z-index: 20;
+    background: #f9fafb !important;
+    text-align: center;
+    border-bottom: 3px solid var(--primary);
+    padding: 12px 8px !important;
+    color: var(--text-main);
+    font-weight: 600;
+    height: 75px !important;
 }
 
+/* LEFT COLUMN (periods) */
+.period-header {
+    position: sticky;
+    left: 0;
+    z-index: 30;
+    background: #374151 !important;
+    color: white;
+    width: 100px !important;
+    min-width: 100px !important;
+    max-width: 100px !important;
+    font-weight: 600;
+    font-size: 14px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+/* TOP-LEFT CORNER CELL (CRITICAL FIX) */
+thead .period-header {
+    position: sticky;
+    top: 0;
+    left: 0;
+    z-index: 999;
+    background: #374151 !important;
+    color: white;
+    box-shadow: 2px 2px 6px rgba(0,0,0,0.15);
+}
+
+/* TABLE CELLS */
 th,
 td {
     border-right: 1px solid var(--border-color);
@@ -159,68 +195,18 @@ td {
     position: relative;
 }
 
-/* LEFT FROZEN COLUMN */
-.period-header {
-    position: sticky;
-    left: 0;
-    background: #374151 !important;
-    color: white;
-    width: 100px !important;
-    min-width: 100px !important;
-    max-width: 100px !important;
-    font-weight: 600;
-    font-size: 14px;
-    text-align: center;
-    vertical-align: middle;
-    z-index: 30;
-}
-
-/* TOP FROZEN ROW */
-.teacher-header {
-    position: sticky;
-    top: 0;
-    background: #f9fafb !important;
-    z-index: 20;
-    text-align: center;
-    border-top: 1px solid var(--border-color);
-    border-bottom: 3px solid var(--primary);
-    padding: 12px 8px !important;
-    color: var(--text-main);
-    font-weight: 600;
-    height: 75px !important;
-    min-height: 75px !important;
-    max-height: none !important;
-}
-
-/* TOP-LEFT CORNER CELL */
-thead .period-header {
-    position: sticky;
-    top: 0;
-    left: 0;
-    z-index: 100; /* must be higher than both header layers */
-    background: #374151 !important;
-    color: white;
-    box-shadow: 2px 2px 4px rgba(0,0,0,0.15);
-}
-
-/* SCROLLABLE CELL WRAPPER */
+/* SCROLLABLE CELL */
 .cell-scroll-wrapper {
     position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    inset: 0;
     overflow-y: auto;
     padding: 8px;
     box-sizing: border-box;
 }
 
+/* SCROLLBAR */
 .cell-scroll-wrapper::-webkit-scrollbar {
     width: 6px;
-}
-
-.cell-scroll-wrapper::-webkit-scrollbar-track {
-    background: transparent;
 }
 
 .cell-scroll-wrapper::-webkit-scrollbar-thumb {
@@ -228,21 +214,15 @@ thead .period-header {
     border-radius: 10px;
 }
 
-.cell-scroll-wrapper::-webkit-scrollbar-thumb:hover {
-    background: #9ca3af;
-}
-
-/* EXCEL-LIKE ROW RESIZER */
+/* RESIZER */
 .row-resizer {
     position: absolute;
     bottom: 0;
     left: 0;
     width: 100%;
     height: 6px;
-    background: transparent;
     cursor: ns-resize;
     z-index: 50;
-    transition: background 0.2s;
 }
 
 .row-resizer:hover,
@@ -250,7 +230,7 @@ thead .period-header {
     background: var(--primary);
 }
 
-/* COURSE CARDS */
+/* COURSE CARD */
 .course-card {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
@@ -258,45 +238,33 @@ thead .period-header {
     border-radius: 6px;
     padding: 8px 10px;
     margin-bottom: 8px;
-    min-height: 60px;
     font-size: 11px;
-    line-height: 1.4;
-    box-sizing: border-box;
     cursor: grab;
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-    transition: box-shadow 0.2s, transform 0.1s;
-}
-
-.course-card:hover {
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
 }
 
 .course-card strong {
-    color: var(--text-main);
     display: block;
     font-size: 12px;
     font-weight: 700;
-    white-space: normal;
 }
 
 .course-card span {
     display: block;
-    white-space: normal;
-    word-wrap: break-word;
     color: var(--text-muted);
 }
 
 .course-card.dragging {
     opacity: 0.4;
-    transform: scale(0.95);
 }
 
-/* INTERACTION STATES */
+/* DROP STATE */
 .drop-target {
     background: #e0e7ff !important;
     border: 2px dashed var(--primary) !important;
 }
 
+/* SAVE INDICATOR */
 .save-indicator {
     font-size: 13px;
     color: #34d399;
