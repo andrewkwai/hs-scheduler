@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HS Scheduler - VP Sandbox</title>
+    <title>HS Scheduler - Dashboard</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -16,17 +16,20 @@
         <button id="login-btn">Sign in with Google</button>
     </div>
 
-    <div id="app-section">
+    <div id="app-section" style="display:none;">
         <div class="header-flex">
             <h1>Welcome, <span id="user-name">VP</span>!</h1>
-            <button id="logout-btn">Sign Out</button>
+            <div>
+                <button id="go-to-scheduler" style="background: #6200ee; color:white; margin-right: 10px;">Go to Scheduler →</button>
+                <button id="logout-btn">Sign Out</button>
+            </div>
         </div>
         
         <div class="card status-card">
             <h3>Database Status: <span id="db-count">0</span> Sections Loaded</h3>
             <div class="controls">
-                <button id="refresh-db-btn" style="background: #6c757d;">Refresh View</button>
-                <button id="clear-db-btn" style="background: #dc3545;">Clear All Data</button>
+                <button id="refresh-db-btn" style="background: #6c757d; color:white;">Refresh View</button>
+                <button id="clear-db-btn" style="background: #dc3545; color:white;">Clear All Data</button>
             </div>
         </div>
 
@@ -38,25 +41,15 @@
             </div>
             <div id="status-msg"></div>
         </div>
-
-        <div id="schedule-output">
-            <table id="schedule-table" style="display:none;">
-                <thead><tr id="table-headers"></tr></thead>
-                <tbody id="table-body"></tbody>
-            </table>
-        </div>
     </div>
 </div>
 
 <script>
-    // --- CONFIGURATION ---
     const SUPABASE_URL = 'https://xzfseofviwlifygfkhdp.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_SQ2VKEbyWqfShaw5EfypgQ_esez7tdt';
-
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     let parsedData = [];
 
-    // --- AUTHENTICATION ---
     document.getElementById('login-btn').onclick = async () => {
         await supabaseClient.auth.signInWithOAuth({
             provider: 'google',
@@ -69,134 +62,60 @@
         window.location.reload();
     };
 
+    document.getElementById('go-to-scheduler').onclick = () => window.location.href = 'scheduler.html';
+
     async function checkUser() {
         const { data: { user } } = await supabaseClient.auth.getUser();
         if (user) {
             document.getElementById('auth-section').style.display = 'none';
             document.getElementById('app-section').style.display = 'block';
             document.getElementById('user-name').textContent = user.user_metadata.full_name;
-            fetchSections(); // Load data as soon as user is confirmed
-        } else {
-            document.getElementById('auth-section').style.display = 'block';
-        }
-    }
-    checkUser();
-
-    // --- DATA MANAGEMENT ---
-
-    // Fetch existing data from Supabase
-    async function fetchSections() {
-        const { data, count, error } = await supabaseClient
-            .from('sections')
-            .select('*', { count: 'exact' });
-
-        if (error) {
-            console.error("Fetch Error:", error);
-        } else {
-            document.getElementById('db-count').textContent = count || 0;
-            if (data && data.length > 0) {
-                displayTable(data.slice(0, 50)); // Show preview of first 50
-            } else {
-                document.getElementById('schedule-table').style.display = 'none';
-            }
+            fetchCount();
         }
     }
 
-    // Clear all data
-    document.getElementById('clear-db-btn').onclick = async () => {
-        if (confirm("Are you sure? This will delete all rows from the database.")) {
-            const { error } = await supabaseClient
-                .from('sections')
-                .delete()
-                .neq('id', 0); // Standard way to say "delete all"
+    async function fetchCount() {
+        const { count } = await supabaseClient.from('sections').select('*', { count: 'exact', head: true });
+        document.getElementById('db-count').textContent = count || 0;
+    }
 
-            if (error) alert("Error clearing data: " + error.message);
-            else {
-                alert("Database Cleared");
-                fetchSections();
-            }
-        }
-    };
-
-    document.getElementById('refresh-db-btn').onclick = fetchSections;
-
-    // --- CSV HANDLING ---
     document.getElementById('csv-file').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = (event) => parseCSV(event.target.result);
+        reader.onload = (event) => {
+            const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
+            const lines = event.target.result.split(/\r?\n/);
+            const headers = lines[0].split(regex).map(h => h.replace(/"/g, '').trim());
+            parsedData = [];
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                const cells = lines[i].split(regex).map(c => c.replace(/"/g, '').trim());
+                let rowObj = {};
+                headers.forEach((h, idx) => rowObj[h] = cells[idx]);
+                parsedData.push(rowObj);
+            }
+            document.getElementById('save-db-btn').style.display = 'inline-block';
+        };
         reader.readAsText(file);
     });
 
-    function parseCSV(text) {
-        const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
-        const lines = text.split(/\r?\n/);
-        const headers = lines[0].split(regex).map(h => h.replace(/"/g, '').trim());
-        
-        parsedData = [];
-        for (let i = 1; i < lines.length; i++) {
-            if (!lines[i].trim()) continue;
-            const cells = lines[i].split(regex).map(c => c.replace(/"/g, '').trim());
-            let rowObj = {};
-            headers.forEach((h, idx) => rowObj[h] = cells[idx]);
-            parsedData.push(rowObj);
-        }
-        
-        displayTable(parsedData.slice(0, 20)); // Show preview
-        document.getElementById('save-db-btn').style.display = 'inline-block';
-    }
-
-    // UI Helper to show data in the table
-    function displayTable(dataArray) {
-        if (dataArray.length === 0) return;
-        
-        const headerRow = document.getElementById('table-headers');
-        const tableBody = document.getElementById('table-body');
-        
-        // Use keys from the first object as headers
-        const headers = Object.keys(dataArray[0]).filter(key => key !== 'id' && key !== 'created_at');
-        
-        headerRow.innerHTML = '';
-        tableBody.innerHTML = '';
-
-        headers.forEach(h => {
-            const th = document.createElement('th');
-            th.textContent = h;
-            headerRow.appendChild(th);
-        });
-
-        dataArray.forEach(row => {
-            const tr = document.createElement('tr');
-            headers.forEach(h => {
-                const td = document.createElement('td');
-                td.textContent = row[h];
-                tr.appendChild(td);
-            });
-            tableBody.appendChild(tr);
-        });
-
-        document.getElementById('schedule-table').style.display = 'table';
-    }
-
-    // --- SAVE TO DATABASE ---
     document.getElementById('save-db-btn').onclick = async () => {
         const msg = document.getElementById('status-msg');
-        msg.textContent = "Uploading to database...";
-        
+        msg.textContent = "Uploading...";
         const { error } = await supabaseClient.from('sections').insert(parsedData);
-        
-        if (error) {
-            msg.style.color = "red";
-            msg.textContent = "Error: " + error.message;
-        } else {
-            msg.style.color = "green";
-            msg.textContent = "Success! Data saved.";
-            fetchSections(); // Update the count and view
-            document.getElementById('save-db-btn').style.display = 'none';
+        if (error) { msg.textContent = "Error: " + error.message; msg.style.color="red"; }
+        else { msg.textContent = "Success!"; fetchCount(); }
+    };
+
+    document.getElementById('clear-db-btn').onclick = async () => {
+        if(confirm("Delete everything?")) {
+            await supabaseClient.from('sections').delete().neq('id', 0);
+            fetchCount();
         }
     };
-</script>
 
+    checkUser();
+</script>
 </body>
 </html>

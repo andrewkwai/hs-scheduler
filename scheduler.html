@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Master Grid - HS Scheduler</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div class="controls-bar">
+    <strong style="color: #4285f4; font-size: 18px;">HS Master Grid</strong>
+    <label><input type="checkbox" id="lock-rows" checked> Lock Rows (Period Constrain)</label>
+    <span id="save-status" class="save-indicator">● System Online</span>
+    <div style="flex-grow: 1;"></div>
+    <a href="index.html" style="color: white; text-decoration: none;">← Back to Dashboard</a>
+</div>
+
+<div class="grid-container">
+    <table id="master-grid">
+        <thead><tr id="teacher-headers"></tr></thead>
+        <tbody id="grid-body"></tbody>
+    </table>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://xzfseofviwlifygfkhdp.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_SQ2VKEbyWqfShaw5EfypgQ_esez7tdt';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let allSections = [];
+    let teachers = [];
+    let lockedTeachers = new Set();
+
+    const periods = [
+        {term: 'S1', per: '1(A)'}, {term: 'S1', per: '2(A)'}, {term: 'S1', per: '3(A)'}, {term: 'S1', per: '4(A)'},
+        {term: 'S2', per: '1(A)'}, {term: 'S2', per: '2(A)'}, {term: 'S2', per: '3(A)'}, {term: 'S2', per: '4(A)'}
+    ];
+
+    async function init() {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) { window.location.href = 'index.html'; return; }
+
+        const { data } = await supabaseClient.from('sections').select('*');
+        allSections = data || [];
+        teachers = [...new Set(allSections.map(s => s.Teacher))].filter(t => t).sort();
+        renderGrid();
+    }
+
+    function renderGrid() {
+        const head = document.getElementById('teacher-headers');
+        const body = document.getElementById('grid-body');
+        
+        head.innerHTML = '<th class="period-header">Period</th>';
+        teachers.forEach(t => {
+            const th = document.createElement('th');
+            th.className = 'teacher-header';
+            th.innerHTML = `${t}<br><input type="checkbox" onchange="toggleLock('${t}', this.checked)">`;
+            head.appendChild(th);
+        });
+
+        body.innerHTML = '';
+        periods.forEach(p => {
+            const tr = document.createElement('tr');
+            const tdLabel = document.createElement('td');
+            tdLabel.className = 'period-header';
+            tdLabel.innerHTML = `${p.term}<br><small>${p.per}</small>`;
+            tr.appendChild(tdLabel);
+
+            teachers.forEach(t => {
+                const td = document.createElement('td');
+                td.dataset.teacher = t; td.dataset.term = p.term; td.dataset.period = p.per;
+                
+                td.ondragover = e => e.preventDefault();
+                td.ondragenter = () => { if(!lockedTeachers.has(t)) td.classList.add('drop-target'); };
+                td.ondragleave = () => td.classList.remove('drop-target');
+                td.ondrop = handleDrop;
+
+                allSections.filter(s => s.Teacher === t && s.Term === p.term && s.Period === p.per)
+                    .forEach(s => {
+                        const card = document.createElement('div');
+                        card.className = 'course-card';
+                        card.draggable = !lockedTeachers.has(t);
+                        card.innerHTML = `<strong>${s.Course}</strong><br>${s.CrsName}`;
+                        card.ondragstart = e => { e.dataTransfer.setData('sectionId', s.id); card.classList.add('dragging'); };
+                        card.ondragend = () => card.classList.remove('dragging');
+                        td.appendChild(card);
+                    });
+                tr.appendChild(td);
+            });
+            body.appendChild(tr);
+        });
+    }
+
+    function toggleLock(t, isLocked) {
+        if(isLocked) lockedTeachers.add(t); else lockedTeachers.delete(t);
+        renderGrid();
+    }
+
+    async function handleDrop(e) {
+        e.preventDefault();
+        const td = e.currentTarget;
+        td.classList.remove('drop-target');
+        const id = e.dataTransfer.getData('sectionId');
+        const source = allSections.find(s => s.id == id);
+
+        if(lockedTeachers.has(td.dataset.teacher)) return alert("Teacher Locked");
+        if(document.getElementById('lock-rows').checked && source.Period !== td.dataset.period) return alert("Row Lock Active");
+
+        document.getElementById('save-status').textContent = "⏳ Saving...";
+        const { error } = await supabaseClient.from('sections').update({ 
+            Teacher: td.dataset.teacher, Term: td.dataset.term, Period: td.dataset.period 
+        }).eq('id', id);
+
+        if(!error) { document.getElementById('save-status').textContent = "✅ Saved"; init(); }
+    }
+
+    init();
+</script>
+</body>
+</html>
