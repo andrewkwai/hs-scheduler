@@ -69,6 +69,25 @@
     let teachers = [];
     let lockedTeachers = new Set();
     let currentUserSchool = null;
+    let subjectLookup = {}; // Prefix -> Subject Area mapping
+
+    // Color Palette for Ontario Subject Areas
+    const subjectColors = {
+        "English": "#3b82f6",              // Blue
+        "Mathematics": "#ef4444",          // Red
+        "Science": "#22c55e",              // Green
+        "The Arts": "#a855f7",              // Purple
+        "Business Studies": "#f59e0b",      // Amber
+        "Canadian and World Studies": "#14b8a6", // Teal
+        "Health and Physical Education": "#f97316", // Orange
+        "Social Sciences and Humanities": "#ec4899", // Pink
+        "Technological Education": "#64748b", // Slate
+        "French as a Second Language": "#06b6d4", // Cyan
+        "International Languages": "#06b6d4", // Cyan
+        "Guidance and Career Education": "#84cc16", // Lime
+        "Interdisciplinary Studies": "#6366f1", // Indigo
+        "First Nations, Métis, and Inuit Studies": "#8b5cf6" // Violet
+    };
 
     const periods = [
         {term: 'S1', per: '1(A)'}, {term: 'S1', per: '2(A)'}, {term: 'S1', per: '3(A)'}, {term: 'S1', per: '4(A)'},
@@ -94,7 +113,15 @@
         currentUserSchool = allowedUser.school;
         document.getElementById('school-label').textContent = `[${currentUserSchool}]`;
 
-        // SECURITY: Fetch ONLY sections belonging to this user's school
+        // NEW: Fetch the Subject/Prefix map from your new table
+        const { data: subData } = await supabaseClient.from('course_subjects').select('course_prefix, subject_area');
+        if (subData) {
+            subData.forEach(row => {
+                subjectLookup[row.course_prefix] = row.subject_area;
+            });
+        }
+
+        // Fetch sections
         const { data } = await supabaseClient
             .from('sections')
             .select('*')
@@ -122,7 +149,7 @@
 
             const nameDiv = document.createElement('div');
             nameDiv.style.marginBottom = "8px";
-            nameDiv.textContent = displayName; // Safe text handling
+            nameDiv.textContent = displayName;
 
             th.appendChild(nameDiv);
             th.insertAdjacentHTML('beforeend', `
@@ -138,7 +165,6 @@
         body.innerHTML = '';
         periods.forEach(p => {
             const tr = document.createElement('tr');
-            
             const tdLabel = document.createElement('td');
             tdLabel.className = 'period-header';
             tdLabel.innerHTML = `${p.term}<br><span style="font-size:11px; color:#9ca3af; font-weight:400;">Per ${p.per}</span>`;
@@ -194,7 +220,12 @@
                         card.draggable = !lockedTeachers.has(t);
                         if(lockedTeachers.has(t)) card.style.cursor = 'not-allowed';
                         
-                        // NEW: Updated to show Course-Section
+                        // NEW: Color Coding Logic
+                        const prefix = s.Course ? s.Course.substring(0, 3) : "";
+                        const subject = subjectLookup[prefix] || "Other";
+                        const borderCol = subjectColors[subject] || "#94a3b8"; // Default slate
+                        card.style.borderLeft = `4px solid ${borderCol}`;
+
                         card.innerHTML = `<strong>${s.Course}-${s.Section || ''}</strong><span>${s.CrsName}</span>`;
                         
                         card.ondragstart = e => { 
@@ -223,12 +254,9 @@
         const td = e.currentTarget;
         td.classList.remove('drop-target');
         const id = e.dataTransfer.getData('sectionId');
-        
         if (!id) return;
-        
         const source = allSections.find(s => s.id == id);
 
-        // 1. Validations
         if(lockedTeachers.has(td.dataset.teacher)) return alert("Teacher Locked");
         if(document.getElementById('lock-rows').checked && source.Period !== td.dataset.period) {
             alert("Constrain Active: Cannot switch periods.");
@@ -238,7 +266,6 @@
         document.getElementById('save-status').textContent = "⏳ Syncing...";
         document.getElementById('save-status').style.color = "#fbbf24";
 
-        // 2. The Update
         const { data, error } = await supabaseClient
             .from('sections')
             .update({ 
@@ -253,7 +280,6 @@
         if(!error && data && data.length > 0) { 
             document.getElementById('save-status').textContent = "✅ Saved"; 
             document.getElementById('save-status').style.color = "#34d399"; 
-            
             const index = allSections.findIndex(s => s.id == id);
             allSections[index] = data[0]; 
             renderGrid(); 
@@ -265,11 +291,9 @@
         }
     }
 
-    // --- NEW: Changes Report Logic ---
     document.getElementById('view-changes-btn').onclick = () => {
         const tbody = document.getElementById('changes-tbody');
         tbody.innerHTML = ''; 
-        
         const changedSections = allSections.filter(s => {
             return s.Teacher !== s.orig_teacher || 
                    String(s.Term) !== String(s.orig_term) || 
@@ -277,12 +301,11 @@
         });
 
         if (changedSections.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding: 30px; color: #64748b;">No changes have been made from the original CSV upload.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding: 30px; color: #64748b;">No changes detected.</td></tr>`;
         } else {
             changedSections.forEach(s => {
                 const origStr = `${s.orig_teacher} | Term: ${s.orig_term} | Per: ${s.orig_period}`;
                 const newStr = `${s.Teacher} | Term: ${s.Term} | Per: ${s.Period}`;
-                
                 tbody.innerHTML += `
                     <tr style="border-bottom: 1px solid #e2e8f0;">
                         <td style="padding: 12px; border: none;">
@@ -295,8 +318,7 @@
                         <td style="padding: 12px; border: none; color: #059669; font-weight: 600;">
                             ${newStr}
                         </td>
-                    </tr>
-                `;
+                    </tr>`;
             });
         }
         document.getElementById('changes-modal').style.display = 'flex';
@@ -309,7 +331,6 @@
     document.getElementById('export-pdf-btn').onclick = () => {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        
         const changedSections = allSections.filter(s => {
             return s.Teacher !== s.orig_teacher || 
                    String(s.Term) !== String(s.orig_term) || 
@@ -332,13 +353,9 @@
             startY: 35,
             head: [['Course', 'Original (PowerSchool)', 'New Assignment']],
             body: tableData,
-            headStyles: { fillColor: [79, 70, 229] }, // Matches your --primary color
+            headStyles: { fillColor: [79, 70, 229] },
             styles: { fontSize: 9, cellPadding: 3 },
-            columnStyles: {
-                0: { cellWidth: 40 },
-                1: { cellWidth: 70 },
-                2: { cellWidth: 70 }
-            }
+            columnStyles: { 0: { cellWidth: 40 }, 1: { cellWidth: 70 }, 2: { cellWidth: 70 } }
         });
 
         doc.save(`Proposed_Changes_${currentUserSchool}.pdf`);
