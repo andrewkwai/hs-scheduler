@@ -139,7 +139,7 @@ th, td {
     border-bottom: 3px solid var(--primary);
     padding: 12px 8px !important;
     color: var(--text-main); font-weight: 600;
-    height: auto !important; 
+    height: 75px !important; 
     max-height: none !important;
     min-height: 60px !important;
 }
