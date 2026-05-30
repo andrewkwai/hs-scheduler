@@ -31,15 +31,17 @@
     });
 
     document.getElementById('login-btn').onclick = async () => {
-        if (window.location.protocol === 'file:') {
-            alert("ERROR: Google Login requires a web server. Please use Live Server or host the files.");
-            return;
-        }
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        
+        // Check if we are on GitHub and append the folder name
+        const redirectUrl = isLocal 
+            ? window.location.origin + '/dashboard.html' 
+            : 'https://andrewkwai.github.io/hs-scheduler/dashboard.html';
 
         await supabaseClient.auth.signInWithOAuth({ 
             provider: 'google', 
             options: { 
-                redirectTo: window.location.origin + '/dashboard.html' 
+                redirectTo: redirectUrl
             } 
         });
     };
