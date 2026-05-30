@@ -75,12 +75,33 @@
 
     async function checkUser() {
         const { data: { user } } = await supabaseClient.auth.getUser();
+        
         if (user) {
-            document.getElementById('auth-section').style.display = 'none';
-            document.getElementById('app-section').style.display = 'block';
-            document.getElementById('user-name').textContent = user.user_metadata.full_name;
-            fetchCount();
+            // SECURITY CHECK: Is this user in our database?
+            const { data: allowedUser, error } = await supabaseClient
+                .from('allowed_users')
+                .select('*')
+                .eq('email', user.email)
+                .single();
+
+            if (allowedUser) {
+                // Legit user found! Show the app.
+                document.getElementById('auth-section').style.display = 'none';
+                document.getElementById('app-section').style.display = 'block';
+                document.getElementById('user-name').textContent = user.user_metadata.full_name;
+                fetchCount();
+            } else {
+                // Logged in to Google, but not authorized
+                document.getElementById('auth-section').style.display = 'block';
+                document.getElementById('auth-section').innerHTML = `
+                    <h2 style="color: var(--danger); margin-bottom: 10px;">Access Denied</h2>
+                    <p style="color: var(--text-muted); margin-bottom: 24px;">Your email (<strong>${user.email}</strong>) is not authorized to view this scheduling system.</p>
+                    <button onclick="supabaseClient.auth.signOut().then(() => window.location.reload())" style="background: var(--danger); width: 100%; padding: 12px;">Sign Out</button>
+                `;
+                document.getElementById('app-section').style.display = 'none';
+            }
         } else {
+            // Not logged in at all
             document.getElementById('auth-section').style.display = 'block';
             document.getElementById('app-section').style.display = 'none';
         }
