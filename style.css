@@ -20,48 +20,20 @@ body {
     color: var(--text-main);
     margin: 0;
     padding: 0;
+    overflow: hidden; /* Prevent body scroll, use grid-container scroll only */
 }
 
-h1, h2, h3 { margin-top: 0; color: var(--text-main); }
-
-.container {
-    max-width: 1000px;
-    margin: 40px auto;
-    padding: 0 20px;
-}
-
-/* CARDS (DASHBOARD) */
+/* DASHBOARD COMPONENTS */
 .card {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     padding: 24px;
     border-radius: 12px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     margin-bottom: 24px;
     text-align: center;
 }
 
-.card.highlight {
-    border: 2px solid var(--primary);
-    background: #eef2ff;
-}
-
-.header-flex {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-}
-
-.controls {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    justify-content: center;
-    margin-top: 16px;
-}
-
-/* BUTTONS */
 button {
     background: var(--primary);
     color: white;
@@ -71,30 +43,19 @@ button {
     cursor: pointer;
     font-size: 14px;
     font-weight: 600;
-    transition: all 0.2s ease;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
-
-button:hover { background: var(--primary-hover); transform: translateY(-1px); }
-button:active { transform: translateY(0); }
-
-#logout-btn { background: var(--danger); }
-#logout-btn:hover { background: var(--danger-hover); }
-#clear-db-btn { background: #fee2e2; color: var(--danger); border: 1px solid #f87171; }
-#clear-db-btn:hover { background: #fecaca; }
-#save-db-btn { background: var(--success); display: none; }
 
 /* SCHEDULER NAV BAR */
 .controls-bar { 
     display: flex; gap: 24px; align-items: center;
     background: #1f2937; color: white; padding: 12px 24px; 
     height: 60px; box-sizing: border-box;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-    position: relative;
-    z-index: 100;
+    position: sticky;
+    top: 0;
+    z-index: 100; /* Stays above the grid */
 }
 
-/* SCHEDULER GRID */
+/* SCHEDULER GRID CONTAINER */
 .grid-container { 
     width: 100vw; 
     height: calc(100vh - 60px); 
@@ -103,7 +64,7 @@ button:active { transform: translateY(0); }
 }
 
 table { 
-    border-collapse: separate; 
+    border-collapse: separate; /* Required for sticky to work correctly with borders */
     border-spacing: 0;
     table-layout: fixed !important; 
     width: max-content; 
@@ -112,128 +73,75 @@ table {
 th, td { 
     border-right: 1px solid var(--border-color); 
     border-bottom: 1px solid var(--border-color); 
-    width: 200px !important; 
-    min-width: 200px !important;
-    max-width: 200px !important;
-    height: 150px !important; 
-    padding: 0 !important; 
-    vertical-align: top;
-    background: var(--card-bg);
+    width: 220px !important; 
+    min-width: 220px !important;
+    height: 150px; 
+    padding: 0; 
+    background-color: white; /* Force solid color */
+    background-clip: padding-box;
 }
 
-/* --- STICKY HEADERS LOGIC --- */
+/* --- THE STICKY "NUCLEAR" LAYER CAKE --- */
 
-/* Side Column (Periods) */
+/* 1. Side Period Column (Left) */
 .period-header { 
     position: sticky; 
     left: 0; 
-    background: #374151 !important; 
+    background-color: #374151 !important; 
     color: white; 
-    z-index: 20; /* High priority to stay above cards */
+    z-index: 20; /* Higher than teacher-header */
     width: 100px !important; 
     min-width: 100px !important; 
     font-weight: 600; 
-    font-size: 14px;
     text-align: center; 
     vertical-align: middle;
+    border-right: 2px solid #1f2937;
 }
 
-/* Top Row (Teachers) */
+/* 2. Top Teacher Row (Top) */
 .teacher-header { 
     position: sticky; 
     top: 0; 
-    background: #f9fafb !important; 
-    z-index: 10; /* Lower than Period Header for corner overlap */
-    text-align: center; 
-    border-top: 1px solid var(--border-color);
-    border-bottom: 3px solid var(--primary);
+    background-color: #f9fafb !important; 
+    z-index: 10; 
+    border-bottom: 3px solid var(--primary) !important;
     padding: 12px 8px !important;
-    color: var(--text-main); 
-    font-weight: 600;
-    height: 75px !important; 
+    height: 80px !important;
 }
 
-/* The Top-Left Corner Cell */
-thead th.period-header {
-    top: 0;
+/* 3. The Corner Cell (Top-Left) */
+/* This selects the Period label cell inside the header row */
+#teacher-headers th:first-child {
+    position: sticky;
     left: 0;
-    z-index: 30; /* Highest priority: stays fixed on both axes */
-    background: #1f2937 !important;
+    top: 0;
+    z-index: 30; /* Highest: Stays on top of both row and column headers */
+    background-color: #1f2937 !important;
 }
 
-/* SCROLLABLE CELL WRAPPER */
+/* INTERNAL CONTENT WRAPPER */
 .cell-scroll-wrapper {
-    position: absolute !important; 
+    position: absolute; 
     top: 0; bottom: 0; left: 0; right: 0; 
-    overflow-y: auto !important; 
+    overflow-y: auto; 
     padding: 8px;
     box-sizing: border-box;
 }
 
-/* Mini Scrollbar */
-.cell-scroll-wrapper::-webkit-scrollbar { width: 6px; }
-.cell-scroll-wrapper::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
-
-/* EXCEL-LIKE ROW RESIZER */
-.row-resizer {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 6px;
-    background: transparent;
-    cursor: ns-resize; 
-    z-index: 40;
-    transition: background 0.2s;
-}
-
-.row-resizer:hover, .row-resizer.active {
-    background: var(--primary);
-}
-
 /* COURSE CARDS */
 .course-card {
-    background: var(--card-bg); 
+    background: white; 
     border: 1px solid var(--border-color); 
-    border-left: 4px solid var(--primary); 
+    border-left: 4px solid var(--primary);
     border-radius: 6px;
-    padding: 8px 10px; 
+    padding: 8px; 
     margin-bottom: 8px; 
-    height: auto !important; 
-    min-height: 60px;
     font-size: 11px;
-    line-height: 1.4;
-    box-sizing: border-box;
     cursor: grab;
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-    transition: box-shadow 0.2s, transform 0.1s;
 }
 
-.course-card:hover {
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-}
+.course-card strong { display: block; font-weight: 700; color: var(--text-main); }
 
-.course-card strong {
-    color: var(--text-main);
-    display: block;
-    font-size: 12px;
-    font-weight: 700;
-    white-space: normal; 
-}
-
-.course-card span {
-    display: block;
-    white-space: normal;
-    word-wrap: break-word; 
-    color: var(--text-muted);
-}
-
-.course-card.dragging { opacity: 0.4; transform: scale(0.95); }
-
-/* INTERACTION STATES */
-.drop-target { 
-    background: #e0e7ff !important; 
-    border: 2px dashed var(--primary) !important; 
-}
-
+/* SAVE STATUS */
 .save-indicator { font-size: 13px; color: #34d399; font-weight: 600; }
