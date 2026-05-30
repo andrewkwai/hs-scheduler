@@ -171,7 +171,6 @@
 
     async function fetchCount() {
         if (!currentUserSchool) return;
-        const { count } = await supabaseClient
         const { count, error } = await supabaseClient
             .from('sections')
             .select('*', { count: 'exact', head: true })
