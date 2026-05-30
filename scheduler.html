@@ -74,24 +74,24 @@
     let teachers = [];
     let lockedTeachers = new Set();
     let currentUserSchool = null;
-    let subjectLookup = {}; // Prefix -> Subject Area mapping
+    let subjectLookup = {}; 
+    let teacherDeptMap = {}; // Pre-calculated for performance
 
-    // Color Palette for Ontario Subject Areas
     const subjectColors = {
-        "English": "#3b82f6",              // Blue
-        "Mathematics": "#ef4444",          // Red
-        "Science": "#22c55e",              // Green
-        "The Arts": "#a855f7",              // Purple
-        "Business Studies": "#f59e0b",      // Amber
-        "Canadian and World Studies": "#14b8a6", // Teal
-        "Health and Physical Education": "#f97316", // Orange
-        "Social Sciences and Humanities": "#ec4899", // Pink
-        "Technological Education": "#64748b", // Slate
-        "French as a Second Language": "#06b6d4", // Cyan
-        "International Languages": "#06b6d4", // Cyan
-        "Guidance and Career Education": "#84cc16", // Lime
-        "Interdisciplinary Studies": "#6366f1", // Indigo
-        "First Nations, Métis, and Inuit Studies": "#8b5cf6" // Violet
+        "English": "#3b82f6",
+        "Mathematics": "#ef4444",
+        "Science": "#22c55e",
+        "The Arts": "#a855f7",
+        "Business Studies": "#f59e0b",
+        "Canadian and World Studies": "#14b8a6",
+        "Health and Physical Education": "#f97316",
+        "Social Sciences and Humanities": "#ec4899",
+        "Technological Education": "#64748b",
+        "French as a Second Language": "#06b6d4",
+        "International Languages": "#06b6d4",
+        "Guidance and Career Education": "#84cc16",
+        "Interdisciplinary Studies": "#6366f1",
+        "First Nations, Métis, and Inuit Studies": "#8b5cf6"
     };
 
     const periods = [
@@ -118,52 +118,65 @@
         currentUserSchool = allowedUser.school;
         document.getElementById('school-label').textContent = `[${currentUserSchool}]`;
 
-        // NEW: Fetch the Subject/Prefix map from your new table
-        const { data: subData, error: subError } = await supabaseClient.from('course_subjects').select('course_prefix, subject_area');
-        if (subError) {
-            console.error("Error fetching course_subjects mapping:", subError.message);
-        } else if (subData) {
+        // 1. Fetch the Subject/Prefix map with robust error handling
+        const { data: subData, error: subError } = await supabaseClient
+            .from('course_subjects')
+            .select('*'); 
+
+        if (subData) {
             subData.forEach(row => {
-                if (row.course_prefix) subjectLookup[row.course_prefix.trim()] = row.subject_area;
+                // Check multiple possible naming conventions (lowercase, spaces, etc)
+                const prefix = (row.course_prefix || row['Course Prefix'] || "").trim().toUpperCase();
+                const subject = (row.subject_area || row['Subject Area'] || "Other").trim();
+                if (prefix) subjectLookup[prefix] = subject;
             });
+            console.log("Subject Mapping Loaded:", Object.keys(subjectLookup).length, "entries");
         }
 
-        // Fetch sections
+        // 2. Fetch sections
         const { data } = await supabaseClient
             .from('sections')
             .select('*')
             .eq('school', currentUserSchool);
             
         allSections = data || [];
+        
+        // 3. Pre-calculate teacher departments before rendering
+        calculateTeacherDepartments();
         sortTeachers();
         renderGrid();
     }
 
-    document.getElementById('group-by-subject').onchange = () => {
-        sortTeachers();
-        renderGrid();
-    };
+    function calculateTeacherDepartments() {
+        teacherDeptMap = {};
+        const uniqueTeachers = [...new Set(allSections.map(s => s.Teacher))].filter(t => t);
+        
+        uniqueTeachers.forEach(t => {
+            const counts = {};
+            const mySections = allSections.filter(s => s.Teacher === t);
+            
+            mySections.forEach(s => {
+                const prefix = s.Course ? s.Course.trim().substring(0, 3).toUpperCase() : "";
+                const subject = subjectLookup[prefix] || "Other";
+                counts[subject] = (counts[subject] || 0) + 1;
+            });
 
-    function getTeacherSubject(teacherName) {
-        const teacherSections = allSections.filter(s => s.Teacher === teacherName);
-        if (teacherSections.length === 0) return "Other";
-        const subjectCounts = {};
-        teacherSections.forEach(s => {
-            const prefix = s.Course ? s.Course.trim().substring(0, 3) : "";
-            const subject = subjectLookup[prefix] || "Other";
-            subjectCounts[subject] = (subjectCounts[subject] || 0) + 1;
+            const primarySubject = Object.keys(counts).length > 0 
+                ? Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b)
+                : "Other";
+                
+            teacherDeptMap[t] = primarySubject;
         });
-        // Returns the subject the teacher teaches most often
-        return Object.keys(subjectCounts).reduce((a, b) => subjectCounts[a] > subjectCounts[b] ? a : b);
     }
 
     function sortTeachers() {
         const groupBySubject = document.getElementById('group-by-subject').checked;
         const baseTeachers = [...new Set(allSections.map(s => s.Teacher))].filter(t => t);
+        
         if (groupBySubject) {
             teachers = baseTeachers.sort((a, b) => {
-                const subA = getTeacherSubject(a);
-                const subB = getTeacherSubject(b);
+                const subA = teacherDeptMap[a] || "Other";
+                const subB = teacherDeptMap[b] || "Other";
                 return subA.localeCompare(subB) || a.localeCompare(b);
             });
         } else {
@@ -191,8 +204,9 @@
             nameDiv.textContent = displayName;
             th.appendChild(nameDiv);
 
+            // Display Subject if grouped
             if (document.getElementById('group-by-subject').checked) {
-                const sub = getTeacherSubject(t);
+                const sub = teacherDeptMap[t] || "Other";
                 const subDiv = document.createElement('div');
                 subDiv.style.fontSize = "9px";
                 subDiv.style.color = subjectColors[sub] || "#64748b";
@@ -228,7 +242,6 @@
                 const startY = e.clientY;
                 const startHeight = tdLabel.offsetHeight;
                 resizer.classList.add('active');
-
                 function onMouseMove(e) {
                     const newHeight = Math.max(80, startHeight + (e.clientY - startY)); 
                     Array.from(tr.children).forEach(cell => {
@@ -236,13 +249,11 @@
                         cell.style.setProperty('max-height', newHeight + 'px', 'important');
                     });
                 }
-
                 function onMouseUp() {
                     resizer.classList.remove('active');
                     document.removeEventListener('mousemove', onMouseMove);
                     document.removeEventListener('mouseup', onMouseUp);
                 }
-
                 document.addEventListener('mousemove', onMouseMove);
                 document.addEventListener('mouseup', onMouseUp);
             });
@@ -252,7 +263,6 @@
             teachers.forEach(t => {
                 const td = document.createElement('td');
                 td.dataset.teacher = t; td.dataset.term = p.term; td.dataset.period = p.per;
-                
                 if(lockedTeachers.has(t)) td.style.background = '#fafafa';
 
                 const scrollWrapper = document.createElement('div');
@@ -270,20 +280,18 @@
                         card.draggable = !lockedTeachers.has(t);
                         if(lockedTeachers.has(t)) card.style.cursor = 'not-allowed';
                         
-                        // NEW: Color Coding Logic
-                        const prefix = s.Course ? s.Course.trim().substring(0, 3) : "";
+                        // Color Coding Logic
+                        const prefix = s.Course ? s.Course.trim().substring(0, 3).toUpperCase() : "";
                         const subject = subjectLookup[prefix] || "Other";
-                        const borderCol = subjectColors[subject] || "#94a3b8"; // Default slate
-                        card.style.borderLeft = `4px solid ${borderCol}`;
+                        const borderCol = subjectColors[subject] || "#94a3b8"; 
+                        card.style.borderLeft = `5px solid ${borderCol}`;
 
                         card.innerHTML = `<strong>${s.Course}-${s.Section || ''}</strong><span>${s.CrsName}</span>`;
-                        
                         card.ondragstart = e => { 
                             e.dataTransfer.setData('sectionId', s.id); 
                             card.classList.add('dragging'); 
                         };
                         card.ondragend = () => card.classList.remove('dragging');
-                        
                         scrollWrapper.appendChild(card);
                     });
                 
@@ -332,11 +340,12 @@
             document.getElementById('save-status').style.color = "#34d399"; 
             const index = allSections.findIndex(s => s.id == id);
             allSections[index] = data[0]; 
+            // Refresh mapping if teacher context changed
+            calculateTeacherDepartments();
             renderGrid(); 
         } else {
-            console.error("Save Error:", error);
-            alert("Error saving: " + (error ? error.message : "Row visibility lost"));
             document.getElementById('save-status').textContent = "❌ Error";
+            alert("Error saving change.");
             renderGrid(); 
         }
     }
@@ -416,6 +425,11 @@
             document.getElementById('changes-modal').style.display = 'none';
         }
     });
+
+    document.getElementById('group-by-subject').onchange = () => {
+        sortTeachers();
+        renderGrid();
+    };
 
     init();
 </script>
