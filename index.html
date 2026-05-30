@@ -19,10 +19,15 @@
     <div id="app-section" style="display:none;">
         <div class="header-flex">
             <h1>Welcome, <span id="user-name">VP</span>!</h1>
-            <div>
-                <button id="go-to-scheduler" style="background: #6200ee; color:white; margin-right: 10px;">Go to Scheduler →</button>
-                <button id="logout-btn">Sign Out</button>
-            </div>
+            <button id="logout-btn">Sign Out</button>
+        </div>
+        
+        <div class="card" style="background: #f3e5f5; border: 2px solid #7b1fa2;">
+            <h2 style="color: #7b1fa2; margin-top: 0;">Ready to Schedule?</h2>
+            <p>Move from data management to the visual master grid.</p>
+            <button id="go-to-scheduler" style="background: #6200ee; color:white; padding: 15px 30px; font-size: 18px;">
+                Open Visual Scheduler →
+            </button>
         </div>
         
         <div class="card status-card">
@@ -50,6 +55,7 @@
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     let parsedData = [];
 
+    // --- BUTTON CLICKS ---
     document.getElementById('login-btn').onclick = async () => {
         await supabaseClient.auth.signInWithOAuth({
             provider: 'google',
@@ -62,15 +68,24 @@
         window.location.reload();
     };
 
-    document.getElementById('go-to-scheduler').onclick = () => window.location.href = 'scheduler.html';
+    // NAVIGATE TO SCHEDULER
+    document.getElementById('go-to-scheduler').onclick = () => {
+        window.location.href = 'scheduler.html';
+    };
 
+    // --- AUTH LOGIC ---
     async function checkUser() {
         const { data: { user } } = await supabaseClient.auth.getUser();
         if (user) {
+            // Logged In: Show the Dashboard
             document.getElementById('auth-section').style.display = 'none';
             document.getElementById('app-section').style.display = 'block';
             document.getElementById('user-name').textContent = user.user_metadata.full_name;
             fetchCount();
+        } else {
+            // Not Logged In: Show only Login
+            document.getElementById('auth-section').style.display = 'block';
+            document.getElementById('app-section').style.display = 'none';
         }
     }
 
@@ -79,6 +94,7 @@
         document.getElementById('db-count').textContent = count || 0;
     }
 
+    // --- CSV LOGIC ---
     document.getElementById('csv-file').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
