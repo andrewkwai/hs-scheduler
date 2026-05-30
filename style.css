@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-    --primary: #4f46e5;      
+    --primary: #4f46e5;
     --primary-hover: #4338ca;
     --danger: #ef4444;
     --danger-hover: #dc2626;
@@ -14,15 +14,18 @@
 }
 
 /* GLOBAL STYLES */
-body { 
-    font-family: 'Inter', sans-serif; 
+body {
+    font-family: 'Inter', sans-serif;
     background-color: var(--bg-color);
     color: var(--text-main);
     margin: 0;
     padding: 0;
 }
 
-h1, h2, h3 { margin-top: 0; color: var(--text-main); }
+h1, h2, h3 {
+    margin-top: 0;
+    color: var(--text-main);
+}
 
 .container {
     max-width: 1000px;
@@ -36,7 +39,8 @@ h1, h2, h3 { margin-top: 0; color: var(--text-main); }
     border: 1px solid var(--border-color);
     padding: 24px;
     border-radius: 12px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05),
+                0 2px 4px -1px rgba(0, 0, 0, 0.03);
     margin-bottom: 24px;
     text-align: center;
 }
@@ -53,6 +57,14 @@ h1, h2, h3 { margin-top: 0; color: var(--text-main); }
     margin-bottom: 24px;
 }
 
+.controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+    margin-top: 16px;
+}
+
 /* BUTTONS */
 button {
     background: var(--primary);
@@ -67,124 +79,224 @@ button {
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
-button:hover { background: var(--primary-hover); transform: translateY(-1px); }
-#logout-btn { background: var(--danger); }
-#clear-db-btn { background: #fee2e2; color: var(--danger); border: 1px solid #f87171; }
-
-/* SCHEDULER NAV BAR */
-.controls-bar { 
-    display: flex; gap: 24px; align-items: center;
-    background: #1f2937; color: white; padding: 12px 24px; 
-    height: 60px; box-sizing: border-box;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-    position: relative;
-    z-index: 100;
+button:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
 }
 
-/* SCHEDULER GRID CONTAINER */
-.grid-container { 
-    width: 100vw; 
-    height: calc(100vh - 60px); 
-    overflow: auto; 
+button:active {
+    transform: translateY(0);
+}
+
+#logout-btn {
+    background: var(--danger);
+}
+
+#logout-btn:hover {
+    background: var(--danger-hover);
+}
+
+#clear-db-btn {
+    background: #fee2e2;
+    color: var(--danger);
+    border: 1px solid #f87171;
+}
+
+#clear-db-btn:hover {
+    background: #fecaca;
+}
+
+#save-db-btn {
+    background: var(--success);
+    display: none;
+}
+
+/* SCHEDULER NAV BAR */
+.controls-bar {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+    background: #1f2937;
+    color: white;
+    padding: 12px 24px;
+    height: 60px;
+    box-sizing: border-box;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+}
+
+/* SCHEDULER GRID */
+.grid-container {
+    width: 100vw;
+    height: calc(100vh - 60px);
+    overflow: auto;
     background: var(--bg-color);
 }
 
-table { 
-    border-collapse: separate; 
+#master-grid {
+    border-collapse: separate;
     border-spacing: 0;
-    table-layout: fixed !important; 
-    width: max-content; 
+    table-layout: fixed !important;
+    width: max-content;
 }
 
-/* BASE CELL STYLES */
-th, td { 
-    border-right: 1px solid var(--border-color); 
-    border-bottom: 1px solid var(--border-color); 
-    width: 200px !important; 
+thead {
+    position: sticky;
+    top: 0;
+    z-index: 15;
+}
+
+th,
+td {
+    border-right: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+    width: 200px !important;
     min-width: 200px !important;
-    height: 150px !important; 
-    padding: 0 !important; 
+    max-width: 200px !important;
+    height: 150px !important;
+    padding: 0 !important;
     vertical-align: top;
-    background: var(--card-bg); /* Required for sticky opacity */
+    background: var(--card-bg);
+    position: relative;
 }
 
-/* --- THE STICKY "LAYER CAKE" FIX --- */
-
-/* 1. Top Row (Teachers) */
-.teacher-header { 
-    position: sticky; 
-    top: 0; 
-    background: #f9fafb !important; 
-    z-index: 10; /* Lower than side column */
-    text-align: center; 
-    border-bottom: 3px solid var(--primary) !important;
-    padding: 12px 8px !important;
-    color: var(--text-main); 
+/* LEFT FROZEN COLUMN */
+.period-header {
+    position: sticky;
+    left: 0;
+    background: #374151 !important;
+    color: white;
+    width: 100px !important;
+    min-width: 100px !important;
+    max-width: 100px !important;
     font-weight: 600;
-    height: 75px !important; 
+    font-size: 14px;
+    text-align: center;
+    vertical-align: middle;
+    z-index: 30;
 }
 
-/* 2. Side Column (Periods) */
-.period-header { 
-    position: sticky; 
-    left: 0; 
-    background: #374151 !important; 
-    color: white; 
-    z-index: 20; /* Higher than teachers */
-    width: 100px !important; min-width: 100px !important; 
-    font-weight: 600; font-size: 14px;
-    text-align: center; vertical-align: middle;
+/* TOP FROZEN ROW */
+.teacher-header {
+    position: sticky;
+    top: 0;
+    background: #f9fafb !important;
+    z-index: 20;
+    text-align: center;
+    border-top: 1px solid var(--border-color);
+    border-bottom: 3px solid var(--primary);
+    padding: 12px 8px !important;
+    color: var(--text-main);
+    font-weight: 600;
+    height: 75px !important;
+    min-height: 75px !important;
+    max-height: none !important;
 }
 
-/* 3. The Corner (Top-Left Cell) */
+/* TOP-LEFT CORNER CELL */
 thead .period-header {
+    position: sticky;
     top: 0;
     left: 0;
-    z-index: 30; /* Highest priority */
-    background: #1f2937 !important;
+    z-index: 40;
+    box-shadow: 2px 2px 4px rgba(0,0,0,0.1);
 }
 
 /* SCROLLABLE CELL WRAPPER */
 .cell-scroll-wrapper {
-    position: absolute !important; 
-    top: 0; bottom: 0; left: 0; right: 0; 
-    overflow-y: auto !important; 
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    overflow-y: auto;
     padding: 8px;
     box-sizing: border-box;
 }
 
-/* Modern mini scrollbar */
-.cell-scroll-wrapper::-webkit-scrollbar { width: 6px; }
-.cell-scroll-wrapper::-webkit-scrollbar-track { background: transparent; }
-.cell-scroll-wrapper::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
+.cell-scroll-wrapper::-webkit-scrollbar {
+    width: 6px;
+}
+
+.cell-scroll-wrapper::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.cell-scroll-wrapper::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 10px;
+}
+
+.cell-scroll-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
 
 /* EXCEL-LIKE ROW RESIZER */
 .row-resizer {
-    position: absolute; bottom: 0; left: 0; width: 100%; height: 6px;
-    cursor: ns-resize; z-index: 40; transition: background 0.2s;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 6px;
+    background: transparent;
+    cursor: ns-resize;
+    z-index: 50;
+    transition: background 0.2s;
 }
-.row-resizer:hover, .row-resizer.active { background: var(--primary); }
+
+.row-resizer:hover,
+.row-resizer.active {
+    background: var(--primary);
+}
 
 /* COURSE CARDS */
 .course-card {
-    background: var(--card-bg); 
-    border: 1px solid var(--border-color); 
-    border-left: 4px solid var(--primary); 
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--primary);
     border-radius: 6px;
-    padding: 8px 10px; 
-    margin-bottom: 8px; 
+    padding: 8px 10px;
+    margin-bottom: 8px;
     min-height: 60px;
     font-size: 11px;
     line-height: 1.4;
+    box-sizing: border-box;
     cursor: grab;
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     transition: box-shadow 0.2s, transform 0.1s;
 }
 
-.course-card strong { display: block; font-size: 12px; font-weight: 700; color: var(--text-main); }
-.course-card span { display: block; color: var(--text-muted); }
-.course-card.dragging { opacity: 0.4; transform: scale(0.95); }
+.course-card:hover {
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+}
+
+.course-card strong {
+    color: var(--text-main);
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: normal;
+}
+
+.course-card span {
+    display: block;
+    white-space: normal;
+    word-wrap: break-word;
+    color: var(--text-muted);
+}
+
+.course-card.dragging {
+    opacity: 0.4;
+    transform: scale(0.95);
+}
 
 /* INTERACTION STATES */
-.drop-target { background: #e0e7ff !important; border: 2px dashed var(--primary) !important; }
-.save-indicator { font-size: 13px; color: #34d399; font-weight: 600; }
+.drop-target {
+    background: #e0e7ff !important;
+    border: 2px dashed var(--primary) !important;
+}
+
+.save-indicator {
+    font-size: 13px;
+    color: #34d399;
+    font-weight: 600;
+}
