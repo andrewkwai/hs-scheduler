@@ -18,16 +18,23 @@
 
     <div id="app-section">
         <div class="header-flex">
-            <h1>Welcome, <span id="user-name"></span>!</h1>
+            <h1>Welcome, <span id="user-name">VP</span>!</h1>
             <button id="logout-btn">Sign Out</button>
         </div>
         
-        <p>Step 1: Upload your PowerSchool <strong>Sections.csv</strong> to begin.</p>
-        
+        <div class="card status-card">
+            <h3>Database Status: <span id="db-count">0</span> Sections Loaded</h3>
+            <div class="controls">
+                <button id="refresh-db-btn" style="background: #6c757d;">Refresh View</button>
+                <button id="clear-db-btn" style="background: #dc3545;">Clear All Data</button>
+            </div>
+        </div>
+
         <div class="card">
+            <p>Upload a new <strong>Sections.csv</strong> to update the database:</p>
             <div class="controls">
                 <input type="file" id="csv-file" accept=".csv">
-                <button id="save-db-btn">Push to Supabase</button>
+                <button id="save-db-btn">Upload Sections Report</button>
             </div>
             <div id="status-msg"></div>
         </div>
@@ -67,19 +74,53 @@
         if (user) {
             document.getElementById('auth-section').style.display = 'none';
             document.getElementById('app-section').style.display = 'block';
-            
-            // Set Personalized Greeting
-            const fullName = user.user_metadata.full_name;
-            if (fullName) {
-                document.getElementById('user-name').textContent = fullName;
-            }
+            document.getElementById('user-name').textContent = user.user_metadata.full_name;
+            fetchSections(); // Load data as soon as user is confirmed
         } else {
             document.getElementById('auth-section').style.display = 'block';
         }
     }
     checkUser();
 
-    // --- CSV PARSING ---
+    // --- DATA MANAGEMENT ---
+
+    // Fetch existing data from Supabase
+    async function fetchSections() {
+        const { data, count, error } = await supabaseClient
+            .from('sections')
+            .select('*', { count: 'exact' });
+
+        if (error) {
+            console.error("Fetch Error:", error);
+        } else {
+            document.getElementById('db-count').textContent = count || 0;
+            if (data && data.length > 0) {
+                displayTable(data.slice(0, 50)); // Show preview of first 50
+            } else {
+                document.getElementById('schedule-table').style.display = 'none';
+            }
+        }
+    }
+
+    // Clear all data
+    document.getElementById('clear-db-btn').onclick = async () => {
+        if (confirm("Are you sure? This will delete all rows from the database.")) {
+            const { error } = await supabaseClient
+                .from('sections')
+                .delete()
+                .neq('id', 0); // Standard way to say "delete all"
+
+            if (error) alert("Error clearing data: " + error.message);
+            else {
+                alert("Database Cleared");
+                fetchSections();
+            }
+        }
+    };
+
+    document.getElementById('refresh-db-btn').onclick = fetchSections;
+
+    // --- CSV HANDLING ---
     document.getElementById('csv-file').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
@@ -89,15 +130,35 @@
     });
 
     function parseCSV(text) {
-        // Smart regex handles commas inside quoted names like "Capyk, Tamara"
         const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
         const lines = text.split(/\r?\n/);
         const headers = lines[0].split(regex).map(h => h.replace(/"/g, '').trim());
         
+        parsedData = [];
+        for (let i = 1; i < lines.length; i++) {
+            if (!lines[i].trim()) continue;
+            const cells = lines[i].split(regex).map(c => c.replace(/"/g, '').trim());
+            let rowObj = {};
+            headers.forEach((h, idx) => rowObj[h] = cells[idx]);
+            parsedData.push(rowObj);
+        }
+        
+        displayTable(parsedData.slice(0, 20)); // Show preview
+        document.getElementById('save-db-btn').style.display = 'inline-block';
+    }
+
+    // UI Helper to show data in the table
+    function displayTable(dataArray) {
+        if (dataArray.length === 0) return;
+        
         const headerRow = document.getElementById('table-headers');
         const tableBody = document.getElementById('table-body');
-        headerRow.innerHTML = ''; tableBody.innerHTML = '';
-        parsedData = [];
+        
+        // Use keys from the first object as headers
+        const headers = Object.keys(dataArray[0]).filter(key => key !== 'id' && key !== 'created_at');
+        
+        headerRow.innerHTML = '';
+        tableBody.innerHTML = '';
 
         headers.forEach(h => {
             const th = document.createElement('th');
@@ -105,26 +166,17 @@
             headerRow.appendChild(th);
         });
 
-        for (let i = 1; i < lines.length; i++) {
-            if (!lines[i].trim()) continue;
-            const cells = lines[i].split(regex).map(c => c.replace(/"/g, '').trim());
-            
-            let rowObj = {};
-            headers.forEach((h, idx) => rowObj[h] = cells[idx]);
-            parsedData.push(rowObj);
+        dataArray.forEach(row => {
+            const tr = document.createElement('tr');
+            headers.forEach(h => {
+                const td = document.createElement('td');
+                td.textContent = row[h];
+                tr.appendChild(td);
+            });
+            tableBody.appendChild(tr);
+        });
 
-            if (i < 21) {
-                const tr = document.createElement('tr');
-                cells.forEach(c => {
-                    const td = document.createElement('td');
-                    td.textContent = c;
-                    tr.appendChild(td);
-                });
-                tableBody.appendChild(tr);
-            }
-        }
         document.getElementById('schedule-table').style.display = 'table';
-        document.getElementById('save-db-btn').style.display = 'inline-block';
     }
 
     // --- SAVE TO DATABASE ---
@@ -139,7 +191,9 @@
             msg.textContent = "Error: " + error.message;
         } else {
             msg.style.color = "green";
-            msg.textContent = "Success! " + parsedData.length + " rows saved.";
+            msg.textContent = "Success! Data saved.";
+            fetchSections(); // Update the count and view
+            document.getElementById('save-db-btn').style.display = 'none';
         }
     };
 </script>
