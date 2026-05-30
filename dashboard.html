@@ -7,6 +7,10 @@
     <title>HS Scheduler - Dashboard</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* Prevents unauthorized users from seeing a 'flash' of content */
+        body { display: none; }
+    </style>
 </head>
 <body>
 
@@ -39,9 +43,9 @@
 
         <div class="card">
             <h3>Upload Sections Report</h3>
-            <p style="color: var(--text-muted); font-size: 14px;">Select the target school and upload a fresh <strong>.csv</strong> to update the database.</p>
+            <p style="color: var(--text-muted); font-size: 14px;">Upload a fresh <strong>.csv</strong> to update your school's database.</p>
             <div class="controls" style="flex-direction: column;">
-                <select id="school-select" style="padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; width: 100%; max-width: 300px; font-family: 'Inter', sans-serif; font-size: 14px;">
+                <select id="school-select" style="padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; width: 100%; max-width: 300px; font-family: 'Inter', sans-serif; font-size: 14px; background-color: #f9fafb; cursor: not-allowed;">
                     <option value="" disabled selected>-- Select School --</option>
                     <option value="FXH">FXH</option>
                     <option value="PIH">PIH</option>
@@ -65,13 +69,11 @@
     async function checkUser() {
         const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
         
-        // GATEKEEPER: Redirect to login if not authenticated
         if (!user || authError) {
             window.location.href = 'index.html';
             return;
         }
 
-        // Validate against the allowed_users table
         const { data: allowedUser, error: dbError } = await supabaseClient
             .from('allowed_users')
             .select('*')
@@ -80,13 +82,22 @@
 
         if (allowedUser) {
             currentUserSchool = allowedUser.school;
-            document.getElementById('user-name').textContent = `${user.user_metadata.full_name} (${currentUserSchool})`;
+            
+            // UI Setup
+            document.body.style.display = 'block'; // Reveal page only now
+            document.getElementById('user-name').textContent = user.user_metadata.full_name || user.email;
             document.getElementById('db-school-label').textContent = currentUserSchool;
-            document.getElementById('school-select').value = currentUserSchool;
+            
+            // Lock the school dropdown to authorized school
+            const select = document.getElementById('school-select');
+            select.value = currentUserSchool;
+            select.disabled = true;
+
             fetchCount();
         } else {
             alert("Your account is not authorized.");
-            supabaseClient.auth.signOut().then(() => window.location.href = 'index.html');
+            await supabaseClient.auth.signOut();
+            window.location.href = 'index.html';
         }
     }
 
@@ -130,7 +141,12 @@
 
     document.getElementById('save-db-btn').onclick = async () => {
         const msg = document.getElementById('status-msg');
+        const btn = document.getElementById('save-db-btn');
+        
         msg.textContent = "⏳ Uploading...";
+        msg.style.color = "var(--text-main)";
+        btn.disabled = true; 
+        btn.style.opacity = "0.5";
         
         const dataToUpload = parsedData.map(row => ({
             ...row,
@@ -141,12 +157,17 @@
         }));
 
         const { error } = await supabaseClient.from('sections').insert(dataToUpload);
+        
+        btn.disabled = false;
+        btn.style.opacity = "1";
+
         if (error) { 
             msg.textContent = "❌ Error: " + error.message; 
             msg.style.color = "var(--danger)";
         } else { 
-            msg.textContent = "✅ Success!"; 
+            msg.textContent = `✅ Success! ${dataToUpload.length} sections pushed.`; 
             msg.style.color = "var(--success)";
+            btn.style.display = 'none';
             fetchCount(); 
         }
     };
