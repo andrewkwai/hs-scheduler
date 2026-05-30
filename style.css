@@ -53,14 +53,6 @@ h1, h2, h3 { margin-top: 0; color: var(--text-main); }
     margin-bottom: 24px;
 }
 
-.controls {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    justify-content: center;
-    margin-top: 16px;
-}
-
 /* BUTTONS */
 button {
     background: var(--primary);
@@ -76,13 +68,8 @@ button {
 }
 
 button:hover { background: var(--primary-hover); transform: translateY(-1px); }
-button:active { transform: translateY(0); }
-
 #logout-btn { background: var(--danger); }
-#logout-btn:hover { background: var(--danger-hover); }
 #clear-db-btn { background: #fee2e2; color: var(--danger); border: 1px solid #f87171; }
-#clear-db-btn:hover { background: #fecaca; }
-#save-db-btn { background: var(--success); display: none; }
 
 /* SCHEDULER NAV BAR */
 .controls-bar { 
@@ -90,9 +77,11 @@ button:active { transform: translateY(0); }
     background: #1f2937; color: white; padding: 12px 24px; 
     height: 60px; box-sizing: border-box;
     box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    position: relative;
+    z-index: 100;
 }
 
-/* SCHEDULER GRID */
+/* SCHEDULER GRID CONTAINER */
 .grid-container { 
     width: 100vw; 
     height: calc(100vh - 60px); 
@@ -107,52 +96,55 @@ table {
     width: max-content; 
 }
 
+/* BASE CELL STYLES */
 th, td { 
     border-right: 1px solid var(--border-color); 
     border-bottom: 1px solid var(--border-color); 
     width: 200px !important; 
     min-width: 200px !important;
-    max-width: 200px !important;
     height: 150px !important; 
     padding: 0 !important; 
     vertical-align: top;
-    background: var(--card-bg);
-    position: relative !important; 
+    background: var(--card-bg); /* Required for sticky opacity */
 }
 
-/* STICKY HEADERS */
+/* --- THE STICKY "LAYER CAKE" FIX --- */
+
+/* 1. Top Row (Teachers) */
+.teacher-header { 
+    position: sticky; 
+    top: 0; 
+    background: #f9fafb !important; 
+    z-index: 10; /* Lower than side column */
+    text-align: center; 
+    border-bottom: 3px solid var(--primary) !important;
+    padding: 12px 8px !important;
+    color: var(--text-main); 
+    font-weight: 600;
+    height: 75px !important; 
+}
+
+/* 2. Side Column (Periods) */
 .period-header { 
     position: sticky; 
     left: 0; 
-    background: #374151 !important; color: white; 
-    z-index: 10; 
+    background: #374151 !important; 
+    color: white; 
+    z-index: 20; /* Higher than teachers */
     width: 100px !important; min-width: 100px !important; 
     font-weight: 600; font-size: 14px;
     text-align: center; vertical-align: middle;
-    height: 75px !important; 
 }
 
-/* Corner cell: stick to both top and left, and stay on top of other headers */
+/* 3. The Corner (Top-Left Cell) */
 thead .period-header {
     top: 0;
-    z-index: 20;
+    left: 0;
+    z-index: 30; /* Highest priority */
+    background: #1f2937 !important;
 }
 
-/* OVERRIDE HEIGHT FOR TEACHERS */
-.teacher-header { 
-    position: sticky; top: 0; 
-    background: #f9fafb !important; z-index: 5; 
-    text-align: center; 
-    border-top: 1px solid var(--border-color);
-    border-bottom: 3px solid var(--primary);
-    padding: 12px 8px !important;
-    color: var(--text-main); font-weight: 600;
-    height: 75px !important; 
-    max-height: none !important;
-    min-height: 60px !important;
-}
-
-/* SCROLLABLE CELL WRAPPER - THE ABSOLUTE POSITION TRICK */
+/* SCROLLABLE CELL WRAPPER */
 .cell-scroll-wrapper {
     position: absolute !important; 
     top: 0; bottom: 0; left: 0; right: 0; 
@@ -165,24 +157,13 @@ thead .period-header {
 .cell-scroll-wrapper::-webkit-scrollbar { width: 6px; }
 .cell-scroll-wrapper::-webkit-scrollbar-track { background: transparent; }
 .cell-scroll-wrapper::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
-.cell-scroll-wrapper::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 
 /* EXCEL-LIKE ROW RESIZER */
 .row-resizer {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 6px;
-    background: transparent;
-    cursor: ns-resize; 
-    z-index: 20;
-    transition: background 0.2s;
+    position: absolute; bottom: 0; left: 0; width: 100%; height: 6px;
+    cursor: ns-resize; z-index: 40; transition: background 0.2s;
 }
-
-.row-resizer:hover, .row-resizer.active {
-    background: var(--primary);
-}
+.row-resizer:hover, .row-resizer.active { background: var(--primary); }
 
 /* COURSE CARDS */
 .course-card {
@@ -192,41 +173,18 @@ thead .period-header {
     border-radius: 6px;
     padding: 8px 10px; 
     margin-bottom: 8px; 
-    height: auto !important; 
     min-height: 60px;
     font-size: 11px;
     line-height: 1.4;
-    box-sizing: border-box;
     cursor: grab;
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     transition: box-shadow 0.2s, transform 0.1s;
 }
 
-.course-card:hover {
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-}
-
-.course-card strong {
-    color: var(--text-main);
-    display: block;
-    font-size: 12px;
-    font-weight: 700;
-    white-space: normal; 
-}
-
-.course-card span {
-    display: block;
-    white-space: normal;
-    word-wrap: break-word; 
-    color: var(--text-muted);
-}
-
+.course-card strong { display: block; font-size: 12px; font-weight: 700; color: var(--text-main); }
+.course-card span { display: block; color: var(--text-muted); }
 .course-card.dragging { opacity: 0.4; transform: scale(0.95); }
 
 /* INTERACTION STATES */
-.drop-target { 
-    background: #e0e7ff !important; 
-    border: 2px dashed var(--primary) !important; 
-}
-
+.drop-target { background: #e0e7ff !important; border: 2px dashed var(--primary) !important; }
 .save-indicator { font-size: 13px; color: #34d399; font-weight: 600; }
