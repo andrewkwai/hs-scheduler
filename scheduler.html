@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://xzfseofviwlifygfkhdp.supabase.co https://*.supabase.co;">
     <title>Master Grid - HS Scheduler</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -89,12 +90,17 @@
                 displayName = `${parts[0].trim()}, ${parts[1].trim()}`;
             }
 
-            th.innerHTML = `
-                <div style="margin-bottom: 8px;">${displayName}</div>
+            const nameDiv = document.createElement('div');
+            nameDiv.style.marginBottom = "8px";
+            nameDiv.textContent = displayName; // Safe text handling
+
+            th.appendChild(nameDiv);
+            th.insertAdjacentHTML('beforeend', `
                 <label style="font-size: 11px; color: #6b7280; font-weight: 400; display:flex; align-items:center; justify-content:center; gap:4px; cursor:pointer;">
                     <input type="checkbox" onchange="toggleLock('${t}', this.checked)" ${lockedTeachers.has(t) ? 'checked' : ''}> Lock
                 </label>
-            `;
+            `);
+            
             if(lockedTeachers.has(t)) th.style.background = '#fee2e2'; 
             head.appendChild(th);
         });

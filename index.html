@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://xzfseofviwlifygfkhdp.supabase.co https://*.supabase.co;">
     <title>HS Scheduler - Dashboard</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -141,15 +142,27 @@
                 fetchCount();
             } else {
                 console.warn("User not found in allowed_users table.");
-                document.getElementById('auth-section').style.display = 'block';
-                document.getElementById('auth-section').innerHTML = `
-                    <div style="border: 2px solid var(--danger); padding: 20px; border-radius: 12px;">
-                        <h2 style="color: var(--danger); margin-top: 0;">Access Denied</h2>
-                        <p style="color: var(--text-muted);">The account <strong>${user.email}</strong> is not on the authorized list for this system.</p>
-                        <p style="font-size: 12px; color: var(--text-muted);"><em>Note: Database lookup returned no matches.</em></p>
-                        <button onclick="supabaseClient.auth.signOut().then(() => window.location.reload())" style="background: var(--danger); width: 100%; margin-top: 10px;">Sign Out & Try Another Account</button>
-                    </div>
-                `;
+                const authSection = document.getElementById('auth-section');
+                authSection.style.display = 'block';
+                authSection.replaceChildren(); // Clear existing content
+                
+                const errorDiv = document.createElement('div');
+                errorDiv.style.cssText = "border: 2px solid var(--danger); padding: 20px; border-radius: 12px;";
+                errorDiv.innerHTML = `<h2 style="color: var(--danger); margin-top: 0;">Access Denied</h2>`;
+                
+                const p = document.createElement('p');
+                p.style.color = "var(--text-muted)";
+                p.textContent = `The account ${user.email} is not on the authorized list for this system.`;
+                
+                const btn = document.createElement('button');
+                btn.textContent = "Sign Out & Try Another Account";
+                btn.style.cssText = "background: var(--danger); width: 100%; margin-top: 10px;";
+                btn.onclick = () => supabaseClient.auth.signOut().then(() => window.location.reload());
+                
+                errorDiv.appendChild(p);
+                errorDiv.appendChild(btn);
+                authSection.appendChild(errorDiv);
+
                 document.getElementById('app-section').style.display = 'none';
             }
         } else {
@@ -203,9 +216,17 @@
         msg.textContent = "⏳ Uploading to Supabase...";
         msg.style.color = "#4f46e5";
         
+        // SECURITY: Ignore the dropdown selection if it doesn't match the authorized school
+        // This prevents users from spoofing other schools via the UI
+        if (currentUserSchool && selectedSchool !== currentUserSchool) {
+            msg.textContent = "❌ Security Error: You are only authorized for " + currentUserSchool;
+            msg.style.color = "var(--danger)";
+            return;
+        }
+
         const dataToUpload = parsedData.map(row => ({
             ...row,
-            school: selectedSchool
+            school: currentUserSchool // Use the verified school from auth check
         }));
 
         const { error } = await supabaseClient.from('sections').insert(dataToUpload);
