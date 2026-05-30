@@ -6,6 +6,7 @@ body {
     margin: 0;
     padding: 20px;
 }
+
 .container {
     max-width: 1100px;
     margin: 0 auto;
@@ -14,7 +15,16 @@ body {
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.08);
 }
-h1 { color: #1a73e8; margin-top: 0; }
+
+.header-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+h1 { color: #1a73e8; margin: 0; }
+
 .card {
     border: 2px dashed #cbd5e0;
     padding: 30px;
@@ -23,12 +33,14 @@ h1 { color: #1a73e8; margin-top: 0; }
     background: #f8fafc;
     margin: 20px 0;
 }
+
 .controls {
     display: flex;
     gap: 10px;
     align-items: center;
     justify-content: center;
 }
+
 button {
     background: #1a73e8;
     color: white;
@@ -40,9 +52,12 @@ button {
     font-weight: 600;
     transition: transform 0.1s;
 }
+
 button:active { transform: scale(0.98); }
+
 #save-db-btn { background: #34a853; display: none; }
-#logout-btn { background: #ea4335; margin-top: 20px; }
+
+#logout-btn { background: #ea4335; padding: 8px 16px; font-size: 13px; }
 
 #schedule-output {
     margin-top: 30px;
@@ -50,11 +65,13 @@ button:active { transform: scale(0.98); }
     max-height: 400px;
     border: 1px solid #e2e8f0;
 }
+
 table {
     width: 100%;
     border-collapse: collapse;
     font-size: 12px;
 }
+
 th {
     background: #f1f5f9;
     padding: 10px;
@@ -63,10 +80,19 @@ th {
     top: 0;
     text-align: left;
 }
+
 td {
     padding: 8px;
     border-bottom: 1px solid #e2e8f0;
     white-space: nowrap;
 }
+
 #auth-section, #app-section { display: none; }
+
 #status-msg { margin-top: 10px; font-weight: bold; }
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
