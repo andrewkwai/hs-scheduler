@@ -82,8 +82,6 @@ button:active { transform: translateY(0); }
 #logout-btn:hover { background: var(--danger-hover); }
 #clear-db-btn { background: #fee2e2; color: var(--danger); border: 1px solid #f87171; }
 #clear-db-btn:hover { background: #fecaca; }
-#refresh-db-btn { background: #f3f4f6; color: var(--text-main); border: 1px solid var(--border-color); }
-#refresh-db-btn:hover { background: #e5e7eb; }
 #save-db-btn { background: var(--success); display: none; }
 
 /* SCHEDULER NAV BAR */
