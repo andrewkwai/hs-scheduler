@@ -129,6 +129,7 @@ th, td {
     width: 100px !important; min-width: 100px !important; 
     font-weight: 600; font-size: 14px;
     text-align: center; vertical-align: middle;
+    height: 75px !important; 
 }
 
 /* OVERRIDE HEIGHT FOR TEACHERS */
