@@ -20,6 +20,11 @@
         <input type="checkbox" id="lock-rows" checked style="cursor: pointer; width: 16px; height: 16px;"> 
         Constrain to Period
     </label>
+
+    <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; margin-left: 20px; cursor: pointer;">
+        <input type="checkbox" id="group-by-subject" style="cursor: pointer; width: 16px; height: 16px;"> 
+        Group by Subject
+    </label>
     
     <button id="view-changes-btn" style="margin-left: 20px; background: #059669; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px;">
         📋 View Changes
@@ -128,8 +133,40 @@
             .eq('school', currentUserSchool);
             
         allSections = data || [];
-        teachers = [...new Set(allSections.map(s => s.Teacher))].filter(t => t).sort();
+        sortTeachers();
         renderGrid();
+    }
+
+    document.getElementById('group-by-subject').onchange = () => {
+        sortTeachers();
+        renderGrid();
+    };
+
+    function getTeacherSubject(teacherName) {
+        const teacherSections = allSections.filter(s => s.Teacher === teacherName);
+        if (teacherSections.length === 0) return "Other";
+        const subjectCounts = {};
+        teacherSections.forEach(s => {
+            const prefix = s.Course ? s.Course.substring(0, 3) : "";
+            const subject = subjectLookup[prefix] || "Other";
+            subjectCounts[subject] = (subjectCounts[subject] || 0) + 1;
+        });
+        // Returns the subject the teacher teaches most often
+        return Object.keys(subjectCounts).reduce((a, b) => subjectCounts[a] > subjectCounts[b] ? a : b);
+    }
+
+    function sortTeachers() {
+        const groupBySubject = document.getElementById('group-by-subject').checked;
+        const baseTeachers = [...new Set(allSections.map(s => s.Teacher))].filter(t => t);
+        if (groupBySubject) {
+            teachers = baseTeachers.sort((a, b) => {
+                const subA = getTeacherSubject(a);
+                const subB = getTeacherSubject(b);
+                return subA.localeCompare(subB) || a.localeCompare(b);
+            });
+        } else {
+            teachers = baseTeachers.sort();
+        }
     }
 
     function renderGrid() {
@@ -148,10 +185,21 @@
             }
 
             const nameDiv = document.createElement('div');
-            nameDiv.style.marginBottom = "8px";
+            nameDiv.style.marginBottom = "4px";
             nameDiv.textContent = displayName;
-
             th.appendChild(nameDiv);
+
+            if (document.getElementById('group-by-subject').checked) {
+                const sub = getTeacherSubject(t);
+                const subDiv = document.createElement('div');
+                subDiv.style.fontSize = "9px";
+                subDiv.style.color = subjectColors[sub] || "#64748b";
+                subDiv.style.fontWeight = "700";
+                subDiv.style.marginBottom = "6px";
+                subDiv.textContent = sub;
+                th.appendChild(subDiv);
+            }
+
             th.insertAdjacentHTML('beforeend', `
                 <label style="font-size: 11px; color: #6b7280; font-weight: 400; display:flex; align-items:center; justify-content:center; gap:4px; cursor:pointer;">
                     <input type="checkbox" onchange="toggleLock('${t}', this.checked)" ${lockedTeachers.has(t) ? 'checked' : ''}> Lock
