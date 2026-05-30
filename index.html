@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>HS Scheduler</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { border: 1px solid #ccc; padding: 2rem; border-radius: 8px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        button { background: #4285F4; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        #app-section { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1>HS Scheduler</h1>
+        
+        <div id="auth-section">
+            <button id="login-btn">Sign in with Google</button>
+        </div>
+
+        <div id="app-section">
+            <p>Welcome, VP! Authentication Successful.</p>
+            <button id="logout-btn" style="background: #db4437;">Sign Out</button>
+        </div>
+    </div>
+
+    <script>
+        // REPLACE THESE with your actual keys from Supabase Settings > API
+        const SUPABASE_URL = 'https://xzfseofviwlifygfkhdp.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_SQ2VKEbyWqfShaw5EfypgQ_esez7tdt';
+
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // Login Logic
+        document.getElementById('login-btn').onclick = async () => {
+            await supabaseClient.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    // Redirects back to your GitHub Pages site
+                    redirectTo: window.location.origin + window.location.pathname
+                }
+            });
+        };
+
+        // Logout Logic
+        document.getElementById('logout-btn').onclick = async () => {
+            await supabaseClient.auth.signOut();
+            window.location.reload();
+        };
+
+        // Check login status on page load
+        async function checkUser() {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (user) {
+                document.getElementById('auth-section').style.display = 'none';
+                document.getElementById('app-section').style.display = 'block';
+            }
+        }
+        checkUser();
+    </script>
+</body>
+</html>
