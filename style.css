@@ -101,7 +101,8 @@ button:active { transform: translateY(0); }
 }
 
 table { 
-    border-collapse: collapse; 
+    border-collapse: separate; 
+    border-spacing: 0;
     table-layout: fixed !important; 
     width: max-content; 
 }
@@ -121,7 +122,8 @@ th, td {
 
 /* STICKY HEADERS */
 .period-header { 
-    position: sticky; left: 0; 
+    position: sticky; 
+    left: 0; 
     background: #374151 !important; color: white; 
     z-index: 10; 
     width: 100px !important; min-width: 100px !important; 
@@ -130,11 +132,18 @@ th, td {
     height: 75px !important; 
 }
 
+/* Corner cell: stick to both top and left, and stay on top of other headers */
+thead .period-header {
+    top: 0;
+    z-index: 20;
+}
+
 /* OVERRIDE HEIGHT FOR TEACHERS */
 .teacher-header { 
     position: sticky; top: 0; 
     background: #f9fafb !important; z-index: 5; 
     text-align: center; 
+    border-top: 1px solid var(--border-color);
     border-bottom: 3px solid var(--primary);
     padding: 12px 8px !important;
     color: var(--text-main); font-weight: 600;
