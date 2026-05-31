@@ -60,7 +60,7 @@
                 </tr>
             </thead>
             <tbody id="changes-tbody">
-                </tbody>
+            </tbody>
         </table>
     </div>
 </div>
@@ -125,7 +125,6 @@
 
         if (subData) {
             subData.forEach(row => {
-                // Check multiple possible naming conventions (lowercase, spaces, etc)
                 const prefix = (row.course_prefix || row['Course Prefix'] || "").trim().toUpperCase();
                 const subject = (row.subject_area || row['Subject Area'] || "Other").trim();
                 if (prefix) subjectLookup[prefix] = subject;
@@ -149,14 +148,14 @@
 
     function calculateTeacherDepartments() {
         teacherDeptMap = {};
-        const uniqueTeachers = [...new Set(allSections.map(s => s.Teacher))].filter(t => t);
+        const uniqueTeachers = [...new Set(allSections.map(s => s.teacher_name))].filter(t => t);
         
         uniqueTeachers.forEach(t => {
             const counts = {};
-            const mySections = allSections.filter(s => s.Teacher === t);
+            const mySections = allSections.filter(s => s.teacher_name === t);
             
             mySections.forEach(s => {
-                const prefix = s.Course ? s.Course.trim().substring(0, 3).toUpperCase() : "";
+                const prefix = s.course ? s.course.trim().substring(0, 3).toUpperCase() : "";
                 const subject = subjectLookup[prefix] || "Other";
                 counts[subject] = (counts[subject] || 0) + 1;
             });
@@ -171,7 +170,7 @@
 
     function sortTeachers() {
         const groupBySubject = document.getElementById('group-by-subject').checked;
-        const baseTeachers = [...new Set(allSections.map(s => s.Teacher))].filter(t => t);
+        const baseTeachers = [...new Set(allSections.map(s => s.teacher_name))].filter(t => t);
         
         if (groupBySubject) {
             teachers = baseTeachers.sort((a, b) => {
@@ -273,7 +272,7 @@
                 td.ondragleave = () => td.classList.remove('drop-target');
                 td.ondrop = handleDrop;
 
-                allSections.filter(s => s.Teacher === t && s.Term === p.term && s.Period === p.per)
+                allSections.filter(s => s.teacher_name === t && s.term === p.term && s.period === p.per)
                     .forEach(s => {
                         const card = document.createElement('div');
                         card.className = 'course-card';
@@ -281,12 +280,12 @@
                         if(lockedTeachers.has(t)) card.style.cursor = 'not-allowed';
                         
                         // Color Coding Logic
-                        const prefix = s.Course ? s.Course.trim().substring(0, 3).toUpperCase() : "";
+                        const prefix = s.course ? s.course.trim().substring(0, 3).toUpperCase() : "";
                         const subject = subjectLookup[prefix] || "Other";
                         const borderCol = subjectColors[subject] || "#94a3b8"; 
                         card.style.borderLeft = `5px solid ${borderCol}`;
 
-                        card.innerHTML = `<strong>${s.Course}-${s.Section || ''}</strong><span>${s.CrsName}</span>`;
+                        card.innerHTML = `<strong>${s.course}-${s.section || ''}</strong><span>${s.course_name || ''}</span>`;
                         card.ondragstart = e => { 
                             e.dataTransfer.setData('sectionId', s.id); 
                             card.classList.add('dragging'); 
@@ -316,7 +315,7 @@
         const source = allSections.find(s => s.id == id);
 
         if(lockedTeachers.has(td.dataset.teacher)) return alert("Teacher Locked");
-        if(document.getElementById('lock-rows').checked && source.Period !== td.dataset.period) {
+        if(document.getElementById('lock-rows').checked && source.period !== td.dataset.period) {
             alert("Constrain Active: Cannot switch periods.");
             return;
         }
@@ -327,9 +326,9 @@
         const { data, error } = await supabaseClient
             .from('sections')
             .update({ 
-                Teacher: td.dataset.teacher, 
-                Term: td.dataset.term, 
-                Period: td.dataset.period 
+                teacher_name: td.dataset.teacher, 
+                term: td.dataset.term, 
+                period: td.dataset.period 
             })
             .eq('id', id)
             .eq('school', currentUserSchool) 
@@ -354,9 +353,9 @@
         const tbody = document.getElementById('changes-tbody');
         tbody.innerHTML = ''; 
         const changedSections = allSections.filter(s => {
-            return s.Teacher !== s.orig_teacher || 
-                   String(s.Term) !== String(s.orig_term) || 
-                   String(s.Period) !== String(s.orig_period);
+            return s.teacher_name !== s.orig_teacher || 
+                   String(s.term) !== String(s.orig_term) || 
+                   String(s.period) !== String(s.orig_period);
         });
 
         if (changedSections.length === 0) {
@@ -364,12 +363,12 @@
         } else {
             changedSections.forEach(s => {
                 const origStr = `${s.orig_teacher} | Term: ${s.orig_term} | Per: ${s.orig_period}`;
-                const newStr = `${s.Teacher} | Term: ${s.Term} | Per: ${s.Period}`;
+                const newStr = `${s.teacher_name} | Term: ${s.term} | Per: ${s.period}`;
                 tbody.innerHTML += `
                     <tr style="border-bottom: 1px solid #e2e8f0;">
                         <td style="padding: 12px; border: none;">
-                            <strong>${s.Course}-${s.Section || ''}</strong><br>
-                            <span style="font-size: 12px; color: #64748b;">${s.CrsName}</span>
+                            <strong>${s.course}-${s.section || ''}</strong><br>
+                            <span style="font-size: 12px; color: #64748b;">${s.course_name || ''}</span>
                         </td>
                         <td style="padding: 12px; border: none; color: #dc2626;">
                             <del>${origStr}</del>
@@ -391,15 +390,15 @@
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         const changedSections = allSections.filter(s => {
-            return s.Teacher !== s.orig_teacher || 
-                   String(s.Term) !== String(s.orig_term) || 
-                   String(s.Period) !== String(s.orig_period);
+            return s.teacher_name !== s.orig_teacher || 
+                   String(s.term) !== String(s.orig_term) || 
+                   String(s.period) !== String(s.orig_period);
         });
 
         const tableData = changedSections.map(s => [
-            `${s.Course}-${s.Section || ''}\n${s.CrsName}`,
+            `${s.course}-${s.section || ''}\n${s.course_name || ''}`,
             `${s.orig_teacher}\nTerm: ${s.orig_term} | Per: ${s.orig_period}`,
-            `${s.Teacher}\nTerm: ${s.Term} | Per: ${s.Period}`
+            `${s.teacher_name}\nTerm: ${s.term} | Per: ${s.period}`
         ]);
 
         doc.setFontSize(18);
