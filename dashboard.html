@@ -135,6 +135,8 @@
                 parsedData.push(rowObj);
             }
             document.getElementById('save-db-btn').style.display = 'block';
+            document.getElementById('status-msg').textContent = `📊 Prepared ${parsedData.length} sections for upload.`;
+            document.getElementById('status-msg').style.color = "var(--text-main)";
         };
         reader.readAsText(file);
     };
@@ -143,29 +145,80 @@
         const msg = document.getElementById('status-msg');
         const btn = document.getElementById('save-db-btn');
         
-        msg.textContent = "⏳ Uploading...";
+        msg.textContent = "⏳ Uploading in chunks...";
         msg.style.color = "var(--text-main)";
         btn.disabled = true; 
         btn.style.opacity = "0.5";
         
-        const dataToUpload = parsedData.map(row => ({
-            ...row,
-            school: currentUserSchool,
-            orig_teacher: row.Teacher,
-            orig_term: row.Term,
-            orig_period: row.Period
-        }));
+        const dataToUpload = parsedData.map(row => {
+            // Split Course-Section (e.g., "ADA1OR-1") into separate fields
+            const courseSection = (row["Course-Section"] || "").trim();
+            const hyphenIdx = courseSection.indexOf('-');
+            let course = courseSection;
+            let section = "";
+            if (hyphenIdx !== -1) {
+                course = courseSection.substring(0, hyphenIdx).trim();
+                section = courseSection.substring(hyphenIdx + 1).trim();
+            }
+            
+            const teacher = (row["Teacher Name"] || "").trim();
+            const term = (row["Term"] || "").trim();
+            const period = (row["Period"] || "").trim();
 
-        const { error } = await supabaseClient.from('sections').insert(dataToUpload);
+            return {
+                school: currentUserSchool,
+                course_name: row["Course Name"] || null,
+                course: course,
+                section: section,
+                term: term,
+                period: period,
+                homeroom: row["Homeroom"] || null,
+                student_program: row["Student Program"] || null,
+                onsis_class_code: row["OnSIS Class Code"] || null,
+                credit_recovery: row["Other Course Info Credit Recovery"] || null,
+                ministry_content: row["Other Course Info Ministry Content"] || null,
+                combined: row["Combined"] || null,
+                grade_level: row["Grade Level"] || null,
+                class_type: row["Class Type"] || null,
+                delivery_type: row["Delivery Type"] || null,
+                language_of_instruction: row["Language of Instruction"] || null,
+                course_lang_program_type: row["Course Language Program Type"] || null,
+                section_lang_program_type: row["Section Language Program Type"] || null,
+                section_type: row["Section Type"] || null,
+                max_enrollment: row["Max Enrollment"] || null,
+                student_count: row["#Students"] || null,
+                room: row["Room"] || null,
+                teacher_name: teacher,
+                teacher_email: row["Teacher Email"] || null,
+                orig_teacher: teacher,
+                orig_term: term,
+                orig_period: period
+            };
+        });
+
+        const chunkSize = 100;
+        let totalInserted = 0;
+        let hasError = false;
+
+        for (let i = 0; i < dataToUpload.length; i += chunkSize) {
+            const chunk = dataToUpload.slice(i, i + chunkSize);
+            const { error } = await supabaseClient.from('sections').insert(chunk);
+            
+            if (error) {
+                hasError = true;
+                msg.textContent = `❌ Database Error: ` + error.message; 
+                msg.style.color = "var(--danger)";
+                break;
+            }
+            totalInserted += chunk.length;
+            msg.textContent = `⏳ Uploaded ${totalInserted} / ${dataToUpload.length} sections...`;
+        }
         
         btn.disabled = false;
         btn.style.opacity = "1";
 
-        if (error) { 
-            msg.textContent = "❌ Error: " + error.message; 
-            msg.style.color = "var(--danger)";
-        } else { 
-            msg.textContent = `✅ Success! ${dataToUpload.length} sections pushed.`; 
+        if (!hasError) { 
+            msg.textContent = `✅ Success! All ${dataToUpload.length} sections safely pushed.`; 
             msg.style.color = "var(--success)";
             btn.style.display = 'none';
             fetchCount(); 
